@@ -1,0 +1,118 @@
+{
+  "_comment": [
+    "Single source of truth for which Claude models the headless Claude wrapper and",
+    "in-session subagent routing accept, their efforts, fast-mode support, and the",
+    "concrete model each subagent alias resolves to.",
+    "",
+    "Efforts: every level Claude Code accepts for the model (model-config docs, checked",
+    "2026-10-10). Fast mode: fast-mode docs, checked 2026-10-10 - Opus 5.5, Opus 5 and",
+    "Opus 4.8 only; headless `-p` fast mode needs CLI >= fast_min_cli.",
+    "",
+    "aliases: the in-session subagent tool accepts only family aliases. Each maps to the",
+    "concrete ID it resolves to on the Anthropic API/subscription (model-config docs).",
+    "route.py derives the alias at launch and check-model verifies the transcript's",
+    "message.model after the run; a mismatch means the alias moved - update this map.",
+    "",
+    "When a new Claude model ships: ask the user (or check the docs) for its efforts",
+    "and fast support, add a row here, update aliases if it is a family's newest, and",
+    "never edit wrapper code."
+  ],
+  "fast_min_cli": "2.1.205",
+  "models": {
+    "claude-opus-5-5": {
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "fast": true,
+      "confirmed": "2026-09-27"
+    },
+    "claude-opus-5": {
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "fast": true,
+      "confirmed": "2026-09-27"
+    },
+    "claude-opus-4-8": {
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "fast": true,
+      "confirmed": "2026-09-27"
+    },
+    "claude-sonnet-5": {
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "fast": false,
+      "confirmed": "2026-09-27"
+    },
+    "claude-fable-5": {
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "fast": false,
+      "confirmed": "2026-09-27"
+    },
+    "claude-sonnet-5-5": {
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "fast": false,
+      "confirmed": "2026-09-29"
+    },
+    "claude-haiku-5-5": {
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "fast": false,
+      "confirmed": "2026-10-10"
+    },
+    "claude-fable-5-1": {
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "fast": false,
+      "confirmed": "2026-10-10"
+    }
+  },
+  "aliases": {
+    "opus": "claude-opus-5-5",
+    "sonnet": "claude-sonnet-5-5",
+    "haiku": "claude-haiku-5-5",
+    "fable": "claude-fable-5-1",
+    "confirmed": "2026-10-10"
+  }
+}

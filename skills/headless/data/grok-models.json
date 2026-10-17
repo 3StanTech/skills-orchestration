@@ -1,0 +1,31 @@
+{
+  "_comment": [
+    "Single source of truth for which reasoning efforts each Grok model accepts.",
+    "This CANNOT be probed: `grok --help` declares --reasoning-effort <EFFORT> as free",
+    "text and enumerates nothing, so an unsupported tier only fails at launch — after",
+    "the call is billed. The values below are user-confirmed, not guessed.",
+    "",
+    "`grok models` is the authority on WHICH models exist; this file is the authority",
+    "on what each one accepts. resolve-grok-model.sh merges the two and flags any live",
+    "model missing from here as unknown, so a future release surfaces as a question",
+    "rather than a silent wrong-tier launch.",
+    "",
+    "When a new Grok model ships: add its row here, then update the menu in",
+    "warfleet/references/muster.md. Nothing else needs to change."
+  ],
+  "baseline": "grok-4.5",
+  "models": {
+    "grok-4.7": {
+      "efforts": ["medium"],
+      "confirmed": "2026-09-22"
+    },
+    "grok-4.6": {
+      "efforts": ["low", "medium", "high", "xhigh"],
+      "confirmed": "2026-08-13"
+    },
+    "grok-4.5": {
+      "efforts": ["low", "medium", "high"],
+      "confirmed": "2026-08-13"
+    }
+  }
+}

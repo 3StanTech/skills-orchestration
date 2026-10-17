@@ -1,0 +1,2 @@
+{"models":{"claude-opus-5-5":{"efforts":["low","high","max"],"fast":true},"claude-sonnet-5-5":{"efforts":["low","medium","high"],"fast":false},"claude-opus-4-8":{"efforts":["high"],"fast":true}},
+ "aliases":{"opus":"claude-opus-5-5","sonnet":"claude-sonnet-5-5","confirmed":"2026-10-10"}}

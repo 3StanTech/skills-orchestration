@@ -1,0 +1,2 @@
+codex-cli 0.0.0
+{"models":[{"slug":"gpt-6.1-sol","supported_reasoning_levels":[{"effort":"low"},{"effort":"medium"},{"effort":"high"}],"additional_speed_tiers":["fast"]},{"slug":"gpt-6-luna","supported_reasoning_levels":[{"effort":"low"},{"effort":"high"}],"additional_speed_tiers":[]}]}

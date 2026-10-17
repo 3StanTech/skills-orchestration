@@ -1,0 +1,4 @@
+interface:
+  display_name: "Stance"
+  short_description: "Staff implementation with supersoldiers, vibin or chillin"
+  default_prompt: "Use $stance to decide helpers, routes and tiers for this implementation."

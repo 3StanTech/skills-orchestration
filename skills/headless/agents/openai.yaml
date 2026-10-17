@@ -1,0 +1,4 @@
+interface:
+  display_name: "Headless"
+  short_description: "Run Claude, Codex or Grok CLI workers with an explicit tier"
+  default_prompt: "Use $headless to run this task on an explicitly chosen engine, model and effort."

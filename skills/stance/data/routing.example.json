@@ -1,0 +1,80 @@
+{
+  "_comment": [
+    "Routing table: OPTIONAL. You don't need to fill this in. It is only a fallback: a model, effort",
+    "or stance you name yourself ('implement using <model-id> <effort> <chillin|vibin|supersoldiers>',",
+    "or a plan's Orchestration roster) always wins. When neither you nor this table names a tier, the",
+    "agent simply asks you. Stance is not in this table: unnamed means Vibin. Auditors are always",
+    "named or confirmed by you; the review row is only the suggested default.",
+    "install.sh copies this file to routing.json (your copy, untracked). Fill a row only when you want",
+    "that choice made for you: tier/escalation/fallback = {\"model\": \"<id from the headless catalogs>\",",
+    "\"effort\": \"<level>\", \"speed\": \"standard\"}. Schema and rules: ../references/routing.md.",
+    "Check it with: python3 ~/.agents/skills/stance/scripts/route.py validate"
+  ],
+  "version": 1,
+  "families": {
+    "claude": {
+      "active": true
+    },
+    "gpt": {
+      "active": true
+    },
+    "grok": {
+      "active": true
+    }
+  },
+  "task_types": {
+    "plan": {
+      "desc": "plan, explore, architecture, synthesis",
+      "tier": null,
+      "route": "native",
+      "escalation": null,
+      "fallback": null,
+      "notes": ""
+    },
+    "mechanical": {
+      "desc": "copy, config, renames, formatting, small obvious edits",
+      "tier": null,
+      "route": "native",
+      "escalation": null,
+      "fallback": null,
+      "notes": ""
+    },
+    "standard": {
+      "desc": "file-scoped feature work with clear acceptance",
+      "tier": null,
+      "route": "native",
+      "escalation": null,
+      "fallback": null,
+      "notes": ""
+    },
+    "hard": {
+      "desc": "cross-file changes, debugging, unclear root cause",
+      "tier": null,
+      "route": "native",
+      "escalation": null,
+      "fallback": null,
+      "notes": ""
+    },
+    "review": {
+      "desc": "read-only review or audit (lane A); any family",
+      "tier": null,
+      "route": "native",
+      "escalation": null,
+      "fallback": null,
+      "notes": ""
+    },
+    "network": {
+      "desc": "fetch live URLs, web research; needs a smoke test and a fallback",
+      "tier": null,
+      "route": "native",
+      "escalation": null,
+      "fallback": null,
+      "notes": ""
+    },
+    "visual": {
+      "desc": "browser capture and visual checks",
+      "dispatcher_only": true
+    }
+  },
+  "projects": {}
+}

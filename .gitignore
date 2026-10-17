@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.DS_Store
+outcomes.jsonl
+settings.local.json
+*-wip.md
+skills/stance/data/routing.json

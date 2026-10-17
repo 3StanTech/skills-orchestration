@@ -1,0 +1,6 @@
+interface:
+  display_name: "WarFleet"
+  short_description: "Muster and dispatch a multi-model fleet"
+  default_prompt: "Use $warfleet to muster an explicit model roster and coordinate this task."
+policy:
+  allow_implicit_invocation: true
