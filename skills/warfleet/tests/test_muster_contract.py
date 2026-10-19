@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MUSTER = ROOT / "references" / "muster.md"
 LATE_PHASES = ROOT / "references" / "late-phases.md"
 SKILL = ROOT / "SKILL.md"
-GROK_CATALOG = Path.home() / ".agents/skills/headless/data/grok-models.json"
+GROK_CATALOG = ROOT.parent / "headless" / "data" / "grok-models.json"
 GRODEX_RESOLVER = ROOT.parent / "headless" / "scripts" / "resolve-grok-model.sh"
 
 

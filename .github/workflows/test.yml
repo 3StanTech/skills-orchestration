@@ -1,0 +1,24 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  suites:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: warfleet suite
+        run: python3 -m unittest discover -s skills/warfleet/tests
+      - name: stance suite
+        run: python3 -m unittest discover -s skills/stance/tests
+      - name: headless suite
+        run: python3 -m unittest discover -s skills/headless/tests
+      - name: hook suites
+        run: python3 -m unittest discover -s hooks -p 'test_*.py'

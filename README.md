@@ -71,6 +71,8 @@ for s in warfleet stance headless; do python3 -m unittest discover -s skills/$s/
 python3 -m unittest discover -s hooks -p 'test_*.py'
 ```
 
+The same suites run on GitHub Actions for every push and pull request to `main` (`.github/workflows/test.yml`).
+
 ### 7. Uninstall
 
 Remove the hook entry from each host config, then every link that resolves into the bundle (including relative host links), then the clone:

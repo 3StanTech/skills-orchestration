@@ -23,8 +23,10 @@ from pathlib import Path
 from typing import Any
 
 BASELINE_GROK_MODEL = "grok-4.5"
-GROK_CATALOG = Path.home() / ".agents/skills/headless/data/grok-models.json"
-CLAUDE_CATALOG = Path.home() / ".agents/skills/headless/data/claude-models.json"
+# Catalogs live in the sibling headless skill; resolve from this file so clones and installs agree.
+HEADLESS_DATA = Path(__file__).resolve().parents[2] / "headless" / "data"
+GROK_CATALOG = HEADLESS_DATA / "grok-models.json"
+CLAUDE_CATALOG = HEADLESS_DATA / "claude-models.json"
 
 
 class MusterError(ValueError):

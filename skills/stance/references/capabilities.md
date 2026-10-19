@@ -95,5 +95,5 @@ confirmed-capability table, not into a prompt.
 | Claude Code | subagent tool with alias + effort (`routing.md`) | `~/.claude/settings.json` PreToolUse | browser pane is the dispatcher's |
 | Codex | native agents for GPT rows only | `~/.codex/hooks.json` PreToolUse | lanes A/B have no network |
 | Grok | native subagents for Grok rows only | `~/.grok/hooks/headless-launch-guard.json` | family inactive while there is no subscription |
-| Hermes | none, headless wrappers only | `~/.hermes/config.yaml` `hooks.pre_tool_call` (matcher `terminal`); needs the owner's one-time allowlist consent | create-plan guard not registered (no prompt-submit equivalent) |
+| Hermes | none, headless wrappers only | Hermes' `config.yaml` (in its home folder) `hooks.pre_tool_call` (matcher `terminal`); needs the owner's one-time allowlist consent | create-plan guard not registered (no prompt-submit equivalent) |
 | Pi / other | none, headless wrappers only | none known; wrappers still refuse missing tiers and unapproved lane C | verify Pi's skill folder when installed (re-run each bundle's `install.sh`) |
