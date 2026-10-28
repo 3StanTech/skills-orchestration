@@ -2,7 +2,7 @@
 set -eu
 
 usage() {
-  echo "usage: run-claude.sh --cwd DIR --model MODEL --effort low|medium|high|xhigh|max --speed standard|fast --lane A|B|C [--session UUID | --resume UUID] [--prompt-file FILE] [--chrome] [--output-format text|json|stream-json] [--max-budget-usd N] [--add-dir DIR] [--allow-tools RULES] [--approve-lane-c yes] [--auth FILE --task-id ID] [--dry-run]"
+  echo "usage: run-claude.sh --cwd DIR --model MODEL --effort low|medium|high|xhigh|max --speed standard|fast --lane A|B|C [--session UUID | --resume UUID] [--prompt-file FILE] [--chrome] [--output-format text|json|stream-json] [--max-budget-usd N] [--add-dir DIR] [--allow-tools RULES] [--settings FILE] [--approve-lane-c yes] [--auth FILE --task-id ID] [--dry-run]"
 }
 
 cwd=
@@ -22,6 +22,7 @@ output_format=
 max_budget=
 add_dir=
 allow_tools=
+settings_file=
 seen=" "
 
 need_value() {
@@ -51,6 +52,7 @@ while [ "$#" -gt 0 ]; do
     --max-budget-usd) need_value "$@"; max_budget=$2; shift 2 ;;
     --add-dir) need_value "$@"; add_dir=$2; shift 2 ;;
     --allow-tools) need_value "$@"; allow_tools=$2; shift 2 ;;
+    --settings) need_value "$@"; settings_file=$2; shift 2 ;;
     --approve-lane-c) need_value "$@"; approve_lane_c=$2; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "ERROR: unknown argument: $1" >&2; usage >&2; exit 2 ;;
@@ -90,6 +92,20 @@ case "$verdict" in
   *) echo "ERROR: cannot read headless/data/claude-models.json" >&2; exit 2 ;;
 esac
 if [ "$speed" = fast ]; then fast_mode=true; else fast_mode=false; fi
+# --settings FILE: a settings JSON object (e.g. hooks) merged into the one --settings value Claude
+# receives; the wrapper's fastMode always wins so the tier's speed cannot be overridden.
+settings="{\"fastMode\":$fast_mode}"
+if [ -n "$settings_file" ]; then
+  [ -f "$settings_file" ] && [ -r "$settings_file" ] || { echo "ERROR: --settings file is not readable: $settings_file" >&2; exit 2; }
+  settings=$(F="$settings_file" FAST="$fast_mode" python3 -c '
+import json, os, sys
+data = json.load(open(os.environ["F"]))
+if not isinstance(data, dict):
+    sys.exit(1)
+data["fastMode"] = os.environ["FAST"] == "true"
+print(json.dumps(data, separators=(",", ":")))
+' 2>/dev/null) || { echo "ERROR: --settings file must hold a JSON object: $settings_file" >&2; exit 2; }
+fi
 case "$lane" in
   A) permission_mode=plan; disallowed=yes ;;
   B) permission_mode=acceptEdits; disallowed=no ;;
@@ -124,7 +140,7 @@ elif [ ! -t 0 ]; then
 fi
 LC_ALL=C grep -q '[^[:space:]]' "$prompt_buffer" || { echo "ERROR: nonempty prompt file or stdin is required" >&2; exit 2; }
 
-set -- --model "$model" --effort "$effort" --settings "{\"fastMode\":$fast_mode}" --permission-mode "$permission_mode" --exclude-dynamic-system-prompt-sections
+set -- --model "$model" --effort "$effort" --settings "$settings" --permission-mode "$permission_mode" --exclude-dynamic-system-prompt-sections
 if [ "$disallowed" = yes ]; then set -- "$@" --disallowed-tools "Edit,Write,NotebookEdit"; fi
 if [ "$lane" = C ]; then set -- "$@" --dangerously-skip-permissions; fi
 if [ "$chrome" = yes ]; then set -- "$@" --chrome; fi

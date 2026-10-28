@@ -21,13 +21,12 @@ Format: ~/.agents/skills/stance/templates/context-packet.md.
 """
 from __future__ import annotations
 
-import json
-import os
 import re
 import sys
 from pathlib import Path
 
-TABLE = Path(os.environ.get("ROUTE_TABLE", Path.home() / ".agents/skills/stance/data/routing.json"))
+# Delegable task types (references/routes.md); `visual` is dispatcher-only, so it never gets a packet.
+TASK_TYPES = {"plan", "mechanical", "standard", "hard", "review", "network"}
 FIELD = re.compile(r"^\*\*(?P<name>[^*]+?):\*\*\s*(?P<value>.*)$")
 PLACEHOLDER = re.compile(r"<[a-z][^<>`]*>")
 MARKER = re.compile(r"\((?:new|delete)\)")
@@ -56,14 +55,6 @@ def strip_code(text: str) -> str:
     return re.sub(r"`[^`]*`", "", re.sub(r"```.*?```", "", text, flags=re.S))
 
 
-def task_types() -> set[str]:
-    try:
-        rows = json.loads(TABLE.read_text(encoding="utf-8"))["task_types"]
-    except (OSError, ValueError, KeyError):
-        return {"plan", "mechanical", "standard", "hard", "review", "network"}
-    return {name for name, row in rows.items() if not row.get("dispatcher_only")}
-
-
 def check(text: str) -> list[str]:
     problems = []
     s = sections(text)
@@ -74,8 +65,9 @@ def check(text: str) -> list[str]:
     if not value("goal"):
         problems.append("goal is empty")
     ttype = value("task type")
-    if ttype not in task_types():
-        problems.append(f"task type {ttype or '(missing)'!r} is not a routing-table task type")
+    if ttype not in TASK_TYPES:
+        problems.append(f"task type {ttype or '(missing)'!r} is not a delegable task type "
+                        f"({', '.join(sorted(TASK_TYPES))})")
     workdir = Path(value("working directory").strip("`"))
     if not workdir.is_absolute() or not workdir.is_dir():
         problems.append(f"working directory {str(workdir)!r} is not an existing absolute path")

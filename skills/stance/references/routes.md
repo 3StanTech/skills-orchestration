@@ -1,62 +1,59 @@
-# Routing table — how a task gets its tier
+# Routes — how a task gets its tier and its launch route
 
-**You don't need to fill this in.** The table is only a fallback: a model, effort or stance you
-name yourself (`implement using <model-id> <effort> <chillin|vibin|supersoldiers>`, or a plan's
-roster) always wins. When neither you nor the table names a tier, the agent simply asks you.
-Stance is not in this table: unnamed means Vibin. Auditors are always named or confirmed by you.
+**Every launch asks the owner for model + effort**, unless the owner names a tier in the request
+or approves a plan roster that names one. Nothing pre-sets a tier: there is no table, no project
+override and no pre-set escalation tier. Stance is separate: unnamed means Vibin. The final
+auditor is always asked (or confirmed) by the owner.
 
-Owner-approved tiers per task type, so routing is a lookup instead of a fresh decision. The data
-is your copy `~/.agents/skills/stance/data/routing.json` (untracked; `install.sh` creates it from
-`routing.example.json`, every tier empty); the tool is
-`python3 ~/.agents/skills/stance/scripts/route.py` (stdlib only, works from any host). Capability
-rules (lanes, browser, smoke tests, fallbacks, cross-family review) live in `capabilities.md`.
+The tool is `python3 ~/.agents/skills/stance/scripts/route.py` (stdlib only, works from any host).
+Capability rules (lanes, browser, smoke tests, fallbacks, cross-family review) live in
+`capabilities.md`.
 
-## 1. Schema
+## 1. Task types
 
-```json
-{
-  "families": {"claude": {"active": true}, "gpt": {"active": true}, "grok": {"active": true}},
-  "task_types": {
-    "<type>": {"desc": "...", "tier": TIER|null, "route": "native|headless",
-               "escalation": TIER|null, "fallback": TIER|null, "notes": ""},
-    "visual": {"desc": "...", "dispatcher_only": true}
-  },
-  "projects": {"/abs/project/path": {"task_types": {"<type>": {<any row keys to override>}}}}
-}
-```
+`plan`, `mechanical`, `standard`, `hard`, `review`, `network`, and `visual` (dispatcher only,
+never delegated). Classify each task by the hardest thing it must do. The type labels the packet
+and the outcome log; it never picks a tier.
 
-`TIER` is `{"model": "<concrete id>", "effort": "<level>", "speed": "standard|fast"}` (speed
-optional, default standard). Model IDs come from the headless catalogs: Claude
-`headless/data/claude-models.json`, GPT `codex debug models --bundled`, Grok
-`headless/data/grok-models.json`. The family is the ID prefix (`claude-`, `gpt-`, `grok-`).
-
-Task types: `plan`, `mechanical`, `standard`, `hard`, `review`, `network`, and `visual`
-(dispatcher only, never delegated). Classify each task by the hardest thing it must do.
-The `review` row also serves `work-audit`, but only as the suggested auditor: auditor tiers are always named or confirmed by the owner, so `resolve --task-type review` fills the 'routing default' option of a question, never a silent pick.
-
-## 2. Precedence
+## 2. Tier source
 
 1. A tier **named in the current request** — always wins, even for an inactive family (the
-   owner's availability call).
-2. The **plan roster** (Orchestration row).
-3. The **project override** (`projects[<abs path>]`), merged over the global row key by key.
-4. The **global row**.
+   owner's availability call). Words-as-ask: a named tier is the answer; ask only for a missing
+   half.
+2. The **approved plan roster** (Orchestration row).
+3. Otherwise **ask the owner** for model + effort (and speed for Claude).
 
-A global row may hold only `escalation` (and `fallback`) with `tier: null`: the owner names the
-first-pass tier per request, and the row still supplies the failure ladder. No tier at any level, or a table/roster tier in an inactive family → `resolve` exits 3: ask the
-owner for that row only (words-as-ask; never a default). A model or effort missing from its catalog
-exits 2: a blocker to report, never a substitution.
+```sh
+route.py resolve --task-type <t> --host <host> [--named M:E[:S]] [--roster M:E[:S]]
+```
+
+`TIER` is `MODEL:EFFORT[:SPEED]` (speed `standard|fast`, default standard). Model IDs come from the
+headless catalogs: Claude `headless/data/claude-models.json`, GPT `codex debug models --bundled`,
+Grok `headless/data/grok-models.json`. The family is the ID prefix (`claude-`, `gpt-`, `grok-`).
+Exit 3 → ask the owner (no tier named, or a roster tier on an inactive family). A model, effort
+or speed missing from its catalog exits 2: a blocker to report, never a substitution. The output's
+`escalation` and `fallback` are always `null`: both are asked of the owner (or named in the plan).
+
+**Availability.** `~/.agents/skills/headless/data/families.json` is per user and untracked;
+`install.sh` creates it from `families.example.json` with every family on. Set
+`{"active": false, "reason": "..."}` for a family you cannot use. A missing file or family reads
+as active. Inactive families are left out of menus and roster tiers on them exit 3; a tier the
+owner names still resolves.
+
+**Menus.** Build every tier question from `route.py menu [--family claude|gpt|grok]`: one line
+per model of each active family, `<model-id><TAB><efforts>[<TAB>fast]`, read from the catalogs.
+Never preselect an option or mark one "(Recommended)".
 
 ## 3. Routes per host
 
-`route: native` uses the host's own helper when the tier's family is the host's family; otherwise,
-and always for `route: headless`, the headless wrapper.
+A tier whose family is the host's family uses the host's own helper; any other family uses the
+headless wrapper.
 
 | Host (`--host`) | Same-family `native` route | Everything else |
 |---|---|---|
 | `claude` | `subagent` with `model=<alias>` and `effort=<level>`, when the catalog maps an alias to that exact ID and speed is standard | `headless:<engine>` |
-| `codex` | `native:codex` (GPT rows) | `headless:<engine>` |
-| `grok` | `native:grok` (Grok rows) | `headless:<engine>` |
+| `codex` | `native:codex` (GPT tiers) | `headless:<engine>` |
+| `grok` | `native:grok` (Grok tiers) | `headless:<engine>` |
 | `hermes`, `pi`, `other` | none | `headless:<engine>` |
 
 **Exact-ID cases go headless** (`run-claude.sh`, which always pins the concrete ID): pinning an
@@ -72,16 +69,17 @@ transcript: `route.py check-model --transcript <subagent jsonl> --expect <model 
 
 | Failure | Next step | Counts toward escalation |
 |---|---|---|
-| Smoke test fails (`capability probe failed`) | launch the row's `fallback` at once | no |
+| Smoke test fails (`capability probe failed`) | launch the packet's **Fallback** (named by the owner or in the plan) at once | no |
 | Launch, auth or tier error | report verbatim and stop; never switch family | no |
 | Acceptance fails the dispatcher's re-run (1st) | same owner repairs, given the failing command and its output | yes |
-| Acceptance fails again (2nd) | launch the row's `escalation` tier — **any family** — fresh, with the packet and both failure outputs | — |
+| Acceptance fails again (2nd) | **ask the owner** for the escalation tier (menu from `route.py menu`; any family), then launch it fresh with the packet and both failure outputs | — |
 | Escalated attempt fails | mark the task `blocked` and report | — |
 
 Only `acceptance` failures (see `returned_by` in §5) move a task down this ladder. Seam, review and
 dispatcher-check returns go back to the owner as ordinary repairs and never trigger escalation.
 
-An escalation is a fresh session either way, so crossing families costs no extra context and adds
+Nothing pre-sets the escalation tier, so no unusable tier is ever launched on its own. An
+escalation is a fresh session either way, so crossing families costs no extra context and adds
 different blind spots. For the reviewer, a family none of the task's owners used is the better pick
 when one is available; the owner may name a same-family auditor (`capabilities.md` §5).
 
@@ -91,7 +89,7 @@ Every delegated task appends one line at close:
 
 ```sh
 route.py log --plan <plan> --task <id> --task-type <type> --host <host> --project <dir> \
-  --model <id> --effort <level> --route <route> --source <named|roster|project|global> \
+  --model <id> --effort <level> --route <route> --source <named|roster|asked> \
   --first-pass yes|no [--returned-by <list>|none] --repairs <n> \
   [--repaired-by original|fresh-helper|dispatcher|escalation] [--repairs-of <task>] \
   --status complete|done|partial|blocked [--escalated-to <id>] [--model-check ok|mismatch:<id>|n/a] \
@@ -121,7 +119,8 @@ cost fields. `--host` must be one of the `resolve` hosts (`claude, codex, grok, 
   `dispatcher-check`*. `--first-pass no` must include `acceptance`, and `--first-pass yes` must not
   (`log` and `correct` exit 2 otherwise).
 - `repaired_by` — who did the repairs: `original` (the owner, resumed; default), `fresh-helper`
-  (a new session at the same tier), `dispatcher`, or `escalation` (the row's escalation tier).
+  (a new session at the same tier), `dispatcher`, or `escalation` (the tier the owner named after
+the second acceptance failure).
 - `repairs_of` — set on a row that exists only to repair another task (`--repairs-of <task>`).
   Repair rows are counted as `repair_rows` and left out of first-pass statistics.
   When the dispatcher repairs a helper's task itself, log one row such as `--task T1-dispatch
@@ -142,22 +141,14 @@ merged over the original is the effective row; correction lines are never counte
 only from evidence; when the evidence does not show which check returned a task, pick the honest
 best class and write "uncertain" in the note.
 
-- `route.py review [--min-fails 3]` — per task type × tier: `runs`, `first_pass` (passes over
-  classified rows), escalated, blocked, alias mismatches, `returned_by` counts
+- `route.py review` — per task type × tier: `runs`, `first_pass` (passes over classified rows),
+  escalated, blocked, alias mismatches, `returned_by` counts
   (acceptance/seam/review/dispatcher-check/unclassified) and `repair_rows`, plus `suggest:` lines
-  for the nudge rule, for legacy rows still unclassified (`first_pass` false with no `returned_by`),
-  and for hosts outside the list. It never edits the table; the owner does.
-- `route.py nudge --task-type T --model M --effort E [--min-fails 3]` — exits 1 with one line when,
-  among the **last 10 classified non-repair rows** for that task type × tier (file order), acceptance
-  failures are 3 or more **and** the first-pass rate is below 50%. Unclassified legacy rows and
-  repair rows do not count. Implement prints it at close.
-- `route.py validate` — every tier, escalation and fallback exists in its catalog (inactive
-  families skipped), every project path exists, every alias targets a catalog row. The drift check
-  runs it.
+  for moved aliases, for legacy rows still unclassified (`first_pass` false with no
+  `returned_by`), and for hosts outside the list. It informs the owner's next tier choice; it
+  never picks one.
+- `route.py validate` — the catalogs parse (the GPT one only where Codex is installed), every
+  alias targets a Claude catalog row, and every family in `families.json` is known with a boolean
+  `active`. Prints `routing_validate=clean count=0` or one `routing<TAB><finding>` line per
+  problem and exits 1. The drift check runs it.
 
-## 6. Changing the table
-
-Edit `routing.json` (or ask the session to), then run `route.py validate`. To add a project
-override, add its absolute path under `projects` with only the keys that differ. To reactivate
-Grok, set `families.grok.active` to `true`, confirm its rows, and run
-`~/.agents/skills/headless/scripts/resolve-grok-model.sh`.

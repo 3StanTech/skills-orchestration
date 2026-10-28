@@ -28,7 +28,7 @@ git clone https://github.com/3StanTech/skills-orchestration.git ~/.agents/bundle
 ~/.agents/bundles/skills-orchestration/install.sh --check
 ```
 
-`install.sh` symlinks each skill into `~/.agents/skills` (read natively by Codex and Grok) and into the skills folder of every installed host (`~/.claude/skills` for Claude Code, `~/.hermes/skills`, `~/.pi/agent/skills`; created when the host is installed but has no skills folder yet). The hook goes to `~/.agents/hooks`. It also creates your routing table, `skills/stance/data/routing.json`, from the empty `routing.example.json` (only if you have none). It never replaces a real file or a link pointing elsewhere (reported as `conflict`); `--check` changes nothing and exits 1 on any finding. Re-run it after installing a new host. To update later: `git -C ~/.agents/bundles/skills-orchestration pull` (your `routing.json` is untracked, so it never conflicts).
+`install.sh` symlinks each skill into `~/.agents/skills` (read natively by Codex and Grok) and into the skills folder of every installed host (`~/.claude/skills` for Claude Code, `~/.hermes/skills`, `~/.pi/agent/skills`; created when the host is installed but has no skills folder yet). The hook goes to `~/.agents/hooks`. It also creates your family availability file, `skills/headless/data/families.json`, from `families.example.json` (every family on; only if you have none). It never replaces a real file or a link pointing elsewhere (reported as `conflict`); `--check` changes nothing and exits 1 on any finding. Re-run it after installing a new host. To update later: `git -C ~/.agents/bundles/skills-orchestration pull` (your `families.json` is untracked, so it never conflicts).
 
 ### 3. Register the hook
 
@@ -50,11 +50,13 @@ Merge it into any hooks you already have. Codex (`~/.codex/hooks.json`) and Grok
 | ----- | ----------- | ----- | ---- | ------ |
 | `PreToolUse` | `Bash` | no matcher | `Bash\|run_terminal_command` | `~/.agents/hooks/headless-launch-guard.sh` |
 
-### 4. Model routing (optional — you can skip this)
+### 4. Model choice and family availability
 
-**You don't need to fill in the routing table.** It is only a fallback: a model, effort or stance you name yourself (`implement using <model-id> <effort> <chillin|vibin|supersoldiers>`, or a plan's roster) always wins. When neither you nor the table names a tier, the agent simply asks you. Stance is not in the table: unnamed means Vibin. The auditor that reviews finished work is always named or confirmed by you; the table's `review` row is only the suggested default.
+**Every launch asks you for model + effort**, unless you name a tier yourself (`implement using <model-id> <effort> <chillin|vibin|supersoldiers>`) or approve a plan whose roster names one. Nothing pre-sets a tier. The auditor that reviews finished work is always asked (or confirmed) by you, and so is the escalation tier when a task fails its acceptance twice. Stance is separate: unnamed means Vibin. Menus come from `python3 ~/.agents/skills/stance/scripts/route.py menu` (model IDs and efforts from `skills/headless/data/*.json` and `codex debug models --bundled`), with no option preselected.
 
-`install.sh` created `skills/stance/data/routing.json` with every tier empty. Leave it that way to be asked each time, or fill a row once you notice you always give the same answer (schema: `skills/stance/references/routing.md`; model IDs: `skills/headless/data/*.json` and `codex debug models --bundled`). Check it with `python3 ~/.agents/skills/stance/scripts/route.py validate`.
+`install.sh` created `skills/headless/data/families.json` with every family on. If you have no plan or subscription for a family (GPT or Grok, say), set it to `{"active": false, "reason": "..."}`: it then drops out of the menus, and a plan roster tier on it stops to ask you. A tier you name yourself still runs. Check the file with `python3 ~/.agents/skills/stance/scripts/route.py validate`. Rules: `skills/stance/references/routes.md`.
+
+**Upgrading from the routing table:** an existing `skills/stance/data/routing.json` is ignored and can be deleted; move any family you had marked inactive into `families.json`.
 
 The stances: **chillin** — your session works alone; **vibin** — up to 3 helpers for independent tasks; **supersoldiers** — one helper per independent task.
 
@@ -99,7 +101,7 @@ rm -rf ~/.agents/bundles/skills-orchestration
 
 ## Not in this repo
 
-Secrets, the routing outcome log (`~/.agents/state/outcomes.jsonl`), your routing table `skills/stance/data/routing.json` (untracked; made from `routing.example.json`), and your policy file `~/AGENTS.md`.
+Secrets, the routing outcome log (`~/.agents/state/outcomes.jsonl`), your family availability `skills/headless/data/families.json` (untracked; made from `families.example.json`), and your policy file `~/AGENTS.md`.
 
 ## License
 

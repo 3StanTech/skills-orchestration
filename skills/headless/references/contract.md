@@ -6,7 +6,7 @@ The rules every headless worker obeys. The engine references (`engine-codex.md`,
 
 The delegation skills describe **one system from three angles**. A fact corrected in only one of them does not improve the system; it creates a contradiction the next reader cannot resolve. So:
 
-**An enhancement to non-Claude model integration is not finished until every relevant skill carries it.** Today that set is `headless` (this skill and its three engine references), `stance` (its SKILL.md and `references/{capabilities,routing}.md`) and `warfleet` (one copy at `~/.agents/skills/warfleet`, symlinked into `~/.claude/skills`). Treat it as open — any future skill that routes work to an external model CLI joins it automatically.
+**An enhancement to non-Claude model integration is not finished until every relevant skill carries it.** Today that set is `headless` (this skill and its three engine references), `stance` (its SKILL.md and `references/{capabilities,routes}.md`) and `warfleet` (one copy at `~/.agents/skills/warfleet`, symlinked into `~/.claude/skills`). Treat it as open — any future skill that routes work to an external model CLI joins it automatically.
 
 **Route each fact to exactly one home; reference, never paste:**
 
@@ -15,7 +15,7 @@ The delegation skills describe **one system from three angles**. A fact correcte
 | Shared contract — courier framing, lanes, continuity, prompt building, footer block, refusal rule, relay-verbatim, cost model | **this file** |
 | Engine-specific — flags, sandbox behavior, auth, quirks | that engine's `SKILL.md` |
 | Capability routing — lane by capability, family by task shape, browser rule, smoke tests, fallbacks, cross-family review | `~/.agents/skills/stance/references/capabilities.md` |
-| Routing table — task-type tiers, precedence, escalation ladder, outcome log | `~/.agents/skills/stance/references/routing.md` |
+| Tier source and routes — named tier, approved roster or ask; family availability (`headless/data/families.json`); menus (`route.py menu`); routes per host; failure ladder (escalation asked); outcome log | `~/.agents/skills/stance/references/routes.md` |
 | Orchestration — muster, roster, waves, dispatcher contract | `warfleet/SKILL.md` |
 
 **Before calling an edit done, run the drift check and grep every skill in the set for the

@@ -4,4 +4,6 @@ __pycache__/
 outcomes.jsonl
 settings.local.json
 *-wip.md
+skills/headless/data/families.json
+# legacy per-user tier table from earlier versions: never publish it
 skills/stance/data/routing.json

@@ -22,6 +22,10 @@ The single home for capability routing. `stance`, `create-plan`, `implement`, `h
 Codex and Grok enforce containment in the macOS kernel (Seatbelt), irreversibly, for every child
 process. Claude enforces nothing at that level. Use that in both directions.
 
+This table informs what to put in front of the owner; it never picks a tier. The tier is still the
+one the owner names, the approved roster's, or asked (`routes.md` §2), from `route.py menu`, with
+no option preselected; families marked inactive in `headless/data/families.json` are left out.
+
 | Task shape | First choice | Because |
 |---|---|---|
 | Bulk read / analyse / edit, many parallel units | Codex or Grok, lane A/B | the kernel sandbox is a guarantee, not a restriction |
@@ -66,11 +70,11 @@ lost, a remediation round burned, no chance to reassign inside the wave.
   probe, e.g. `curl -sS -o /dev/null -w '%{http_code}' <one target URL>`. On failure the helper
   stops with `STATUS: blocked` and `NOTES: capability probe failed at start — no task work
   attempted.` — never a degraded version of the task.
-- **Fallback.** The same task names a pre-approved fallback tier/route (routing-table row or plan
-  roster). A capability failure launches the fallback immediately, with no question and no repair
-  round. Browser tasks need no fallback: the dispatcher's pane has nothing to fall back from.
+- **Fallback.** The same task names a pre-approved fallback tier/route (named by the owner or in
+  the approved plan roster; never pre-set elsewhere). A capability failure launches the fallback
+  immediately, with no question and no repair round. With no fallback named, ask the owner. Browser tasks need no fallback: the dispatcher's pane has nothing to fall back from.
 - A capability failure is **not** a quality failure: it never counts toward the escalation ladder
-  (`routing.md` §4).
+  (`routes.md` §4).
 
 ## 5. Review family
 
@@ -92,8 +96,8 @@ confirmed-capability table, not into a prompt.
 
 | Host | `native` helper route | Launch guard | Notes |
 |---|---|---|---|
-| Claude Code | subagent tool with alias + effort (`routing.md`) | `~/.claude/settings.json` PreToolUse | browser pane is the dispatcher's |
-| Codex | native agents for GPT rows only | `~/.codex/hooks.json` PreToolUse | lanes A/B have no network |
-| Grok | native subagents for Grok rows only | `~/.grok/hooks/headless-launch-guard.json` | family inactive while there is no subscription |
+| Claude Code | subagent tool with alias + effort (`routes.md`) | `~/.claude/settings.json` PreToolUse | browser pane is the dispatcher's |
+| Codex | native agents for GPT tiers only | `~/.codex/hooks.json` PreToolUse | lanes A/B have no network |
+| Grok | native subagents for Grok tiers only | `~/.grok/hooks/headless-launch-guard.json` | set inactive in `families.json` without a subscription |
 | Hermes | none, headless wrappers only | Hermes' `config.yaml` (in its home folder) `hooks.pre_tool_call` (matcher `terminal`); needs the owner's one-time allowlist consent | create-plan guard not registered (no prompt-submit equivalent) |
 | Pi / other | none, headless wrappers only | none known; wrappers still refuse missing tiers and unapproved lane C | verify Pi's skill folder when installed (re-run each bundle's `install.sh`) |

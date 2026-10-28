@@ -1,0 +1,16 @@
+{
+  "_comment": [
+    "Model families you can use. Per user: install.sh copies this file to families.json beside it",
+    "(untracked), with every family on. For a family you cannot use (no plan or subscription), set",
+    "{\"active\": false, \"reason\": \"<why, with a date>\"}. Inactive families are left out of tier",
+    "menus (route.py menu) and a plan roster tier on one makes route.py resolve exit 3 (ask);",
+    "a tier you name yourself still runs. A missing file or family counts as active.",
+    "Every launch still asks you for model + effort unless you name a tier or approve a plan roster.",
+    "Check it with: python3 ~/.agents/skills/stance/scripts/route.py validate"
+  ],
+  "families": {
+    "claude": {"active": true},
+    "gpt": {"active": true},
+    "grok": {"active": true}
+  }
+}

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Golden context packets: four launchable forms, and packets that must be rejected for specific reasons."""
-import json
 import os
 import subprocess
 import tempfile
@@ -19,10 +18,7 @@ class PacketCheck(unittest.TestCase):
         self.work.mkdir()
         for name in ("calc.py", "test_calc.py"):
             (self.work / name).write_text("")
-        table = Path(self.tmp.name) / "routing.json"
-        table.write_text(json.dumps({"task_types": {t: {} for t in
-                                     ("plan", "mechanical", "standard", "hard", "review", "network")}}))
-        self.env = dict(os.environ, ROUTE_TABLE=str(table))
+        self.env = dict(os.environ)
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -62,6 +58,13 @@ class PacketCheck(unittest.TestCase):
                         "report format is missing STATUS:, FILES:, BLOCKERS:, NOTES:"):
             self.assertIn(problem, r.stdout)
 
+    def test_task_type_must_be_delegable(self):
+        for ttype in ("visual", "nonsense"):
+            with self.subTest(ttype=ttype):
+                r = self.run_fixture("packet-good.md", lambda t: re_type(t, ttype))
+                self.assertEqual(r.returncode, 2)
+                self.assertIn(f"task type '{ttype}' is not a delegable task type", r.stdout)
+
     def test_prose_acceptance_is_rejected(self):
         r = self.run_fixture("packet-prose-acceptance.md")
         self.assertEqual(r.returncode, 2)
@@ -73,6 +76,11 @@ class PacketCheck(unittest.TestCase):
         self.assertIn("placeholder text left", r.stdout)
         self.assertIn("'missing.py' does not exist", r.stdout)
         self.assertNotIn("docs/USAGE.md", r.stdout)  # marked (new)
+
+
+def re_type(text, ttype):
+    lines = [f"**Task type:** {ttype}" if l.startswith("**Task type:**") else l for l in text.splitlines()]
+    return "\n".join(lines) + "\n"
 
 
 if __name__ == "__main__":

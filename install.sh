@@ -8,7 +8,8 @@
 #                                     skills subfolder is created when missing
 #   hooks/<file> (not test_*)      -> $HOME/.agents/hooks/<file>
 #   scripts/<file>                 -> $HOME/.agents/scripts/<file>
-#   skills/stance/data/routing.example.json -> routing.json beside it, only if missing
+#   skills/headless/data/families.example.json -> families.json beside it, only if missing
+#     (per-user family availability; set a family you cannot use to active:false + reason)
 # Never replaces a real file or folder, or a link pointing elsewhere: reported as conflict.
 # A host link that already resolves to the same skill counts as installed.
 # Idempotent. Re-run after installing a new host.
@@ -116,15 +117,15 @@ for f in "$BUNDLE"/scripts/*; do
   link_one "$BUNDLE/scripts/$n" "$HOME/.agents/scripts/$n"
 done
 
-example="$BUNDLE/skills/stance/data/routing.example.json"
-table="$BUNDLE/skills/stance/data/routing.json"
-if [ -f "$example" ] && [ ! -e "$table" ]; then
+example="$BUNDLE/skills/headless/data/families.example.json"
+families="$BUNDLE/skills/headless/data/families.json"
+if [ -f "$example" ] && [ ! -e "$families" ]; then
   if [ "$check" -eq 1 ]; then
-    report missing "$table"
-  elif cp "$example" "$table"; then
-    echo "created $table (empty routing table: agents ask for tiers until you fill it)"
+    report missing "$families"
+  elif cp "$example" "$families"; then
+    echo "created $families (every family on: set active:false + reason for any you cannot use)"
   else
-    fail cp "$table"
+    fail cp "$families"
   fi
 fi
 

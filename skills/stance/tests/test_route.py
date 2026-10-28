@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Routing rules: precedence, host mapping, catalog checks, outcome aggregation.
+"""Tier rules: named > roster > ask, family availability, host mapping, catalog checks, menu,
+outcome aggregation.
 
-Runs route.py as a subprocess against fixture catalogs and a temporary table, so the real
-routing.json, catalogs and outcome log are never read or written.
+Runs route.py as a subprocess against fixture catalogs and a temporary families file, so the real
+families.json, catalogs and outcome log are never read or written.
 """
 import json
 import os
@@ -15,36 +16,17 @@ HERE = Path(__file__).parent
 ROUTE = HERE.parent / "scripts" / "route.py"
 FIX = HERE / "fixtures"
 
-TABLE = {
-    "version": 1,
-    "families": {"claude": {"active": True}, "gpt": {"active": True},
-                 "grok": {"active": False, "reason": "no subscription"}},
-    "task_types": {
-        "mechanical": {"tier": {"model": "gpt-6-luna", "effort": "low"}, "route": "native",
-                       "escalation": {"model": "claude-sonnet-5-5", "effort": "high"}, "fallback": None},
-        "standard": {"tier": {"model": "claude-sonnet-5-5", "effort": "high"}, "route": "native",
-                     "escalation": {"model": "gpt-6.1-sol", "effort": "high"}, "fallback": None},
-        "hard": {"tier": {"model": "claude-opus-5-5", "effort": "max", "speed": "fast"}, "route": "native"},
-        "review": {"tier": {"model": "gpt-6.1-sol", "effort": "high"}, "route": "headless"},
-        "network": {"tier": {"model": "grok-4.6", "effort": "high"}, "route": "native"},
-        "plan": {"tier": None, "route": "native"},
-        "visual": {"dispatcher_only": True},
-    },
-    "projects": {},
-}
+FAMILIES = {"families": {"claude": {"active": True}, "gpt": {"active": True},
+                         "grok": {"active": False, "reason": "no subscription"}}}
 
 
 class RouteHarness(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.dir = Path(self.tmp.name)
-        self.project = self.dir / "client-site"
-        self.project.mkdir()
-        self.table = json.loads(json.dumps(TABLE))
-        self.table["projects"] = {str(self.project.resolve()): {"task_types": {
-            "standard": {"tier": {"model": "claude-opus-5-5", "effort": "high"}}}}}
-        self.write_table()
-        self.env = dict(os.environ, ROUTE_TABLE=str(self.dir / "routing.json"),
+        self.families = json.loads(json.dumps(FAMILIES))
+        self.write_families()
+        self.env = dict(os.environ, ROUTE_FAMILIES=str(self.dir / "families.json"),
                         ROUTE_OUTCOMES=str(self.dir / "outcomes.jsonl"),
                         ROUTE_CLAUDE_CATALOG=str(FIX / "claude-models.json"),
                         ROUTE_GROK_CATALOG=str(FIX / "grok-models.json"),
@@ -53,8 +35,8 @@ class RouteHarness(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def write_table(self):
-        (self.dir / "routing.json").write_text(json.dumps(self.table))
+    def write_families(self):
+        (self.dir / "families.json").write_text(json.dumps(self.families))
 
     def run_route(self, *args):
         return subprocess.run(["python3", str(ROUTE), *args], env=self.env, text=True, capture_output=True)
@@ -70,39 +52,47 @@ class RouteHarness(unittest.TestCase):
         return r.stderr
 
 
-class Precedence(RouteHarness):
-    def test_named_beats_roster_project_and_global(self):
-        out = self.resolve("standard", "claude", "--project", str(self.project),
-                           "--roster", "gpt-6.1-sol:low", "--named", "claude-opus-5-5:low")
+class TierSource(RouteHarness):
+    def test_no_tier_named_asks_the_owner(self):
+        for task_type in ("plan", "standard", "review", "network"):
+            with self.subTest(task_type=task_type):
+                self.assertIn("ask the owner for model + effort", self.resolve_fails(3, task_type))
+
+    def test_named_beats_roster(self):
+        out = self.resolve("standard", "claude", "--roster", "gpt-6.1-sol:low", "--named", "claude-opus-5-5:low")
         self.assertEqual((out["source"], out["model"], out["effort"]), ("named", "claude-opus-5-5", "low"))
 
-    def test_roster_beats_project_and_global(self):
-        out = self.resolve("standard", "claude", "--project", str(self.project), "--roster", "gpt-6.1-sol:low")
-        self.assertEqual((out["source"], out["model"]), ("roster", "gpt-6.1-sol"))
+    def test_roster_when_nothing_named(self):
+        out = self.resolve("standard", "claude", "--roster", "gpt-6.1-sol:low")
+        self.assertEqual((out["source"], out["model"], out["route"]), ("roster", "gpt-6.1-sol", "headless:codex"))
 
-    def test_project_override_beats_global_and_keeps_global_escalation(self):
-        out = self.resolve("standard", "claude", "--project", str(self.project))
-        self.assertEqual((out["source"], out["model"]), ("project", "claude-opus-5-5"))
-        self.assertEqual(out["escalation"]["model"], "gpt-6.1-sol")
+    def test_named_gives_route_and_alias_with_no_preset_ladder(self):
+        out = self.resolve("hard", "claude", "--named", "claude-sonnet-5-5:medium")
+        self.assertEqual((out["route"], out["subagent_alias"], out["speed"]), ("subagent", "sonnet", "standard"))
+        self.assertIsNone(out["escalation"])
+        self.assertIsNone(out["fallback"])
 
-    def test_global_when_project_has_no_override(self):
-        out = self.resolve("mechanical", "claude", "--project", str(self.project))
-        self.assertEqual((out["source"], out["model"]), ("global", "gpt-6-luna"))
+    def test_project_flag_is_gone(self):
+        self.resolve_fails(2, "standard", "claude", "--project", str(self.dir), "--named", "claude-sonnet-5-5:high")
 
-    def test_unfilled_row_needs_owner(self):
-        self.assertIn("ask the owner", self.resolve_fails(3, "plan"))
-
-    def test_named_fills_an_unfilled_row(self):
-        self.assertEqual(self.resolve("plan", "claude", "--named", "claude-sonnet-5-5:medium")["source"], "named")
+    def test_visual_is_dispatcher_only_without_a_tier(self):
+        self.assertEqual(self.resolve("visual", "codex")["route"], "dispatcher")
 
 
 class Families(RouteHarness):
-    def test_inactive_family_from_table_needs_owner(self):
-        self.assertIn("inactive", self.resolve_fails(3, "network"))
+    def test_roster_tier_on_inactive_family_needs_owner(self):
+        self.assertIn("inactive (no subscription)", self.resolve_fails(3, "network", "claude", "--roster", "grok-4.6:high"))
 
     def test_named_inactive_family_is_the_owners_call(self):
         out = self.resolve("standard", "claude", "--named", "grok-4.6:high")
         self.assertEqual(out["route"], "headless:grok")
+
+    def test_missing_file_or_family_means_active(self):
+        del self.families["families"]["grok"]
+        self.write_families()
+        self.assertEqual(self.resolve("standard", "claude", "--roster", "grok-4.6:high")["family"], "grok")
+        (self.dir / "families.json").unlink()
+        self.assertEqual(self.resolve("standard", "claude", "--roster", "grok-4.6:high")["family"], "grok")
 
     def test_unknown_effort_and_model_are_invalid(self):
         self.resolve_fails(2, "standard", "claude", "--named", "claude-sonnet-5-5:max")
@@ -115,8 +105,8 @@ class Families(RouteHarness):
         self.assertEqual(self.resolve("standard", "claude", "--named", "gpt-6.1-sol:high:fast")["speed"], "fast")
 
     def test_unknown_task_type_and_host(self):
-        self.resolve_fails(2, "nonsense")
-        self.resolve_fails(2, "standard", "vscode")
+        self.resolve_fails(2, "nonsense", "claude", "--named", "claude-sonnet-5-5:high")
+        self.resolve_fails(2, "standard", "vscode", "--named", "claude-sonnet-5-5:high")
 
 
 class HostMapping(RouteHarness):
@@ -141,42 +131,61 @@ class HostMapping(RouteHarness):
                 out = self.resolve("standard", host, "--named", tier)
                 self.assertEqual((out["route"], out["subagent_alias"]), (route, alias))
 
-    def test_headless_preference_overrides_native(self):
-        self.assertEqual(self.resolve("review", "codex")["route"], "headless:codex")
 
-    def test_visual_is_dispatcher_only(self):
-        self.assertEqual(self.resolve("visual", "codex")["route"], "dispatcher")
+class Menu(RouteHarness):
+    def models(self, *extra):
+        r = self.run_route("menu", *extra)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return {line.split("\t")[0]: line.split("\t")[1:] for line in r.stdout.splitlines()}
+
+    def test_lists_active_families_with_efforts(self):
+        out = self.models()
+        self.assertIn("claude-sonnet-5-5", out)
+        self.assertIn("gpt-6.1-sol", out)
+        self.assertFalse([m for m in out if m.startswith("grok-")])  # grok is inactive
+        self.assertNotIn("max", out["claude-sonnet-5-5"][0].split(","))
+
+    def test_inactive_gpt_disappears_and_family_filter(self):
+        self.families["families"]["gpt"] = {"active": False, "reason": "no paid plan"}
+        self.write_families()
+        out = self.models()
+        self.assertFalse([m for m in out if m.startswith("gpt-")])
+        self.assertTrue(out)
+        self.assertTrue(all(m.startswith("claude-") for m in self.models("--family", "claude")))
+        self.assertEqual(self.models("--family", "gpt"), {})
+        self.assertEqual(self.run_route("menu", "--family", "mistral").returncode, 2)
 
 
 class Validate(RouteHarness):
-    def test_reports_bad_tiers_and_missing_projects_not_unfilled_rows(self):
-        self.table["task_types"]["mechanical"]["escalation"] = {"model": "claude-sonnet-5-5", "effort": "max"}
-        self.table["projects"]["/no/such/folder"] = {"task_types": {}}
-        self.write_table()
-        r = self.run_route("validate")
-        self.assertEqual(r.returncode, 1)
-        self.assertNotIn("no tier", r.stdout)  # an unfilled row just means "ask"
-        self.assertIn("does not accept effort max", r.stdout)
-        self.assertIn("/no/such/folder: folder does not exist", r.stdout)
-        self.assertNotIn("network", r.stdout)  # inactive family rows are skipped
-
-    def test_escalation_only_row_is_filled(self):
-        self.table["task_types"]["plan"]["escalation"] = {"model": "claude-opus-5-5", "effort": "xhigh"}
-        self.write_table()
-        self.assertNotIn("plan:", self.run_route("validate").stdout)
-
-    def test_clean_table(self):
-        self.table["task_types"]["plan"]["tier"] = {"model": "claude-opus-5-5", "effort": "high"}
-        self.write_table()
+    def test_clean(self):
         r = self.run_route("validate")
         self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("routing_validate=clean count=0", r.stdout)
+
+    def test_rejects_unknown_family_and_bad_active(self):
+        self.families["families"]["mistral"] = {"active": True}
+        self.families["families"]["gpt"] = {"active": "no"}
+        self.write_families()
+        r = self.run_route("validate")
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("unknown family 'mistral'", r.stdout)
+        self.assertIn("gpt needs", r.stdout)
+
+    def test_unreadable_catalog_is_a_finding(self):
+        self.env["ROUTE_GROK_CATALOG"] = str(self.dir / "missing.json")
+        self.assertEqual(self.run_route("validate").returncode, 0)  # grok inactive: not read
+        self.families["families"]["grok"] = {"active": True}
+        self.write_families()
+        r = self.run_route("validate")
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("grok catalog", r.stdout)
 
 
 class OutcomeLog(RouteHarness):
     def log_args(self, first_pass, task="t1", escalated=None, status="complete", check="ok", host="claude"):
         args = ["log", "--plan", "p.md", "--task", task, "--task-type", "standard", "--host", host,
                 "--project", "/x", "--model", "claude-sonnet-5-5", "--effort", "high", "--route", "subagent",
-                "--source", "global", "--first-pass", first_pass, "--repairs", "0" if first_pass == "yes" else "1",
+                "--source", "named", "--first-pass", first_pass, "--repairs", "0" if first_pass == "yes" else "1",
                 "--status", status, "--model-check", check]
         if first_pass == "no":
             args += ["--returned-by", "acceptance"]
@@ -191,27 +200,19 @@ class OutcomeLog(RouteHarness):
 
 
 class Outcomes(OutcomeLog):
-    def test_review_and_nudge_threshold(self):
+    def test_review_aggregates_per_task_type_and_tier(self):
         self.log("yes")
         self.log("no", "t2", escalated="gpt-6.1-sol", status="blocked")
         self.log("no", "t3", check="mismatch:claude-sonnet-6")
-        nudge = ["nudge", "--task-type", "standard", "--model", "claude-sonnet-5-5", "--effort", "high"]
-        self.assertEqual(self.run_route(*nudge).returncode, 0)
         out = self.run_route("review").stdout
         self.assertIn("runs=3 first_pass=1/3 escalated=1 blocked=1 model_mismatch=1", out)
         self.assertIn("alias for claude-sonnet-5-5 moved", out)
-        self.assertNotIn("failed first pass", out)
-        self.log("no", "t4")
-        self.assertEqual(self.run_route(*nudge).returncode, 1)
-        self.assertIn("failed first pass 3x", self.run_route("review").stdout)
 
     def test_review_with_no_log(self):
         self.assertIn("no outcomes recorded yet", self.run_route("review").stdout)
 
 
 class OutcomeRules(OutcomeLog):
-    NUDGE = ["nudge", "--task-type", "standard", "--model", "claude-sonnet-5-5", "--effort", "high"]
-
     def raw_rows(self):
         return [json.loads(l) for l in (self.dir / "outcomes.jsonl").read_text().splitlines()]
 
@@ -308,40 +309,6 @@ class OutcomeRules(OutcomeLog):
         self.log("no", "r1", None, "complete", "ok", "--repairs-of", "t1", "--repaired-by", "fresh-helper")
         self.assertIn("runs=1 first_pass=1/1", self.run_route("review").stdout)
         self.assertIn("repair_rows=1", self.run_route("review").stdout)
-
-    def run_window(self, passes, fails, legacy_fails=0, repairs=0):
-        for i in range(passes):
-            self.log("yes", f"p{i}")
-        for i in range(fails):
-            self.log("no", f"f{i}")
-        for i in range(repairs):
-            self.log("no", f"r{i}", None, "complete", "ok", "--repairs-of", "f0")
-        self.write_legacy(*({"task": f"l{i}", "first_pass": False} for i in range(legacy_fails)))
-        return self.run_route(*self.NUDGE).returncode
-
-    def test_nudge_needs_three_acceptance_failures(self):
-        self.assertEqual(self.run_window(0, 2), 0)
-        self.tearDown(); self.setUp()
-        self.assertEqual(self.run_window(0, 3), 1)
-
-    def test_nudge_rate_boundary(self):
-        self.assertEqual(self.run_window(3, 3), 0)  # 50%: no nudge
-        self.tearDown(); self.setUp()
-        self.assertEqual(self.run_window(4, 5), 1)  # 44%: nudge
-        self.tearDown(); self.setUp()
-        self.assertEqual(self.run_window(5, 5), 0)  # 50% of a full window
-
-    def test_nudge_uses_last_ten_classified_rows(self):
-        for i in range(5):
-            self.log("no", f"old{i}")
-        for i in range(8):
-            self.log("yes", f"new{i}")
-        # window = 2 fails + 8 passes: 80%, no nudge despite 5 lifetime failures
-        self.assertEqual(self.run_route(*self.NUDGE).returncode, 0)
-        self.assertNotIn("failed first pass", self.run_route("review").stdout)
-
-    def test_legacy_unclassified_and_repair_rows_do_not_trip_nudge(self):
-        self.assertEqual(self.run_window(0, 2, legacy_fails=5, repairs=4), 0)
 
 
 class CheckModel(RouteHarness):

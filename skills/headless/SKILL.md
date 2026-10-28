@@ -34,13 +34,17 @@ needs (network, browser, writes outside the workspace) is in
 - Model and effort are both required, plus speed for Claude. **Words-as-ask:** a tier the
   user already named is the answer; ask only for a missing half, in one question round.
   Extraction, not inference.
-- **An approved routing-table row is explicit too.** With no named tier, resolve it:
-  `python3 ~/.agents/skills/stance/scripts/route.py resolve --task-type <t> --host <host>`
-  (`stance/references/routing.md`). A named tier overrides the table; exit 3 means ask the owner
-  for that row only. Families marked inactive in `stance/data/routing.json` (e.g. one you have no
-  subscription for) are not offered unless the user names them. **Auditors are the exception:** a
-  routing row never approves an auditor on its own; the owner names or confirms it.
-- Build menus from the tier authority above, never from memory. Never mark a tier
+- **Every launch asks** unless the owner named the tier in the request or approved a plan roster
+  (or WarFleet muster) that names it. With a named or roster tier, resolve the route:
+  `python3 ~/.agents/skills/stance/scripts/route.py resolve --task-type <t> --host <host> --named M:E[:S]`
+  (or `--roster M:E[:S]`; `stance/references/routes.md`). Exit 3 means ask the owner. The
+  auditor is always asked (or confirmed) by the owner, and so is the escalation tier after a
+  twice-failed acceptance.
+- **Availability** is per user: `data/families.json` (untracked; `install.sh` creates it from
+  `data/families.example.json` with every family on). Families marked `"active": false` are left
+  out of menus and roster tiers on them exit 3, unless the user names them.
+- Build menus from `python3 ~/.agents/skills/stance/scripts/route.py menu [--family F]` (the
+  tier authorities above, active families only), never from memory. Never mark a tier
   "(Recommended)" and never preselect one.
 - An approved plan roster or WarFleet muster is explicit.
 - A model missing from its catalog is not a substitution cue. Record it at plan time: ask
@@ -49,12 +53,29 @@ needs (network, browser, writes outside the workspace) is in
 - Never drop or substitute a model family; availability is the user's call. `grok models`
   printing "not authenticated" is a known false negative.
 
+### Claude Code specifics
+
+- Headless workers are for GPT/Grok, resumable work, or fast-mode helpers; ordinary Claude
+  helpers are in-session subagents (`stance`).
+- Tier menus come from the catalogs (`route.py menu`, `data/claude-models.json`,
+  `data/grok-models.json` via `scripts/resolve-grok-model.sh`, `codex debug models --bundled`),
+  never from memory.
+  `grok models` printing "not authenticated" is a known false negative: never drop or
+  substitute a family on it.
+- **Enforcement:** `~/.agents/hooks/headless-launch-guard.py` (PreToolUse/Bash) blocks raw
+  `codex`/`grok`/`claude -p` launches that bypass the wrappers; the wrappers enforce tiers and
+  the WarFleet roster. `~/.agents/hooks/create-plan-no-implement.py` guards plan-only turns. If
+  either blocks, ask the owner: never strip a tag, edit an auth file, or reshape a command to
+  slip past it.
+
 ## 3. Launch through the wrapper only
 
 - Use the wrappers, one literal invocation per command, with `--cwd`, `--lane A|B|C`,
   `--model`, `--effort` (and `--speed` for Claude and Codex) and one prompt source
   (`--prompt-file` for anything long).
 - Lane C needs `--approve-lane-c yes`.
+- Claude: `--settings FILE` merges a settings JSON object (e.g. a hook for a verification run)
+  into the run's settings; the wrapper's `fastMode` still follows `--speed`.
 - Claude lanes A/B: pass the plan's **Allowed checks** with `--allow-tools "<rule>,<rule>"`
   (permission rules such as `Bash(npx vitest run:*)`, forwarded as `--allowedTools`), so a
   helper runs its own checks in any project without a per-project allow list.
