@@ -23,8 +23,11 @@ cross-family review).
 ## 1. Read the request
 
 - **Stance:** supersoldiers, vibin or chillin. "As many subagents as necessary" and "as fast
-  as possible without sacrificing quality" mean supersoldiers. If none is named, announce
-  exactly: **"No stance was specified, so I'll use Vibin."**
+  as possible without sacrificing quality" mean supersoldiers. "Sole implementer", "only
+  this session implements", "no helpers" or "no subagents" mean **Chillin**, even without
+  a stance name. Apply those constraints before defaults. Only when neither a stance nor
+  a delegation constraint is stated, announce exactly:
+  **"No stance was specified, so I'll use Vibin."**
 - **Tier per task:** every launch asks the owner for model + effort, unless the owner named a
   tier in the request or approved a plan roster that names one. Classify each delegated task
   (`plan`, `mechanical`, `standard`, `hard`, `review`, `network`; browser work is `visual` and
@@ -67,6 +70,8 @@ The session (or planner) always coordinates, integrates, and keeps tasks too sma
 | **Supersoldiers** | 1 per independent, file-disjoint task | none (physical limits only: rate limits, machine load) | the final work-audit auditor (implement runs it) |
 
 - Going below a default needs a one-line reason in the plan or run log.
+- An explicit no-delegation instruction overrides Chillin's optional reviewer/capability
+  helper ceiling too; do not substitute a headless worker for a prohibited subagent.
 - Correctness and acceptance never change with the stance.
 - The same defaults apply to every route and every host, including mixed rosters.
 

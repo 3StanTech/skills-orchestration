@@ -2,7 +2,8 @@
 
 **Every launch asks the owner for model + effort**, unless the owner names a tier in the request
 or approves a plan roster that names one. Nothing pre-sets a tier: there is no table, no project
-override and no pre-set escalation tier. Stance is separate: unnamed means Vibin. The final
+override and no pre-set escalation tier. Stance is separate: session-only implementation or
+no helpers/subagents means Chillin; Vibin applies only without a stance or delegation constraint. The final
 auditor is always asked (or confirmed) by the owner.
 
 The tool is `python3 ~/.agents/skills/stance/scripts/route.py` (stdlib only, works from any host).
