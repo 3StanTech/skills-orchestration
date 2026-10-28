@@ -8,6 +8,7 @@ families.json, catalogs and outcome log are never read or written.
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -155,6 +156,45 @@ class Menu(RouteHarness):
         self.assertEqual(self.models("--family", "gpt"), {})
         self.assertEqual(self.run_route("menu", "--family", "mistral").returncode, 2)
 
+    def test_offers_only_identities_the_launch_path_accepts(self):
+        # Codex's bundled catalog also lists hidden routing models and non-GPT internals.
+        catalog = {"models": [
+            {"slug": "gpt-6.1-sol", "visibility": "list", "supported_reasoning_levels": [{"effort": "high"}]},
+            {"slug": "gpt-daybreak-blue-latest", "visibility": "hide",
+             "supported_reasoning_levels": [{"effort": "high"}]},
+            {"slug": "codex-auto-review", "visibility": "hide", "supported_reasoning_levels": [{"effort": "high"}]},
+            {"slug": "gpt-5.2", "visibility": "list", "supported_reasoning_levels": [{"effort": "high"}]}]}
+        (self.dir / "gpt.txt").write_text(json.dumps(catalog))
+        self.env["ROUTE_GPT_CATALOG"] = str(self.dir / "gpt.txt")
+        self.assertEqual(list(self.models("--family", "gpt")), ["gpt-6.1-sol"])
+        self.resolve("standard", "claude", "--named", "gpt-6.1-sol:high")
+        for slug in ("gpt-daybreak-blue-latest", "gpt-5.2"):
+            self.resolve_fails(2, "standard", "claude", "--named", f"{slug}:high")
+        wrapper = HERE.parents[1] / "headless/scripts/run-codex.sh"
+        for slug in ("gpt-daybreak-blue-latest", "gpt-5.2"):
+            r = subprocess.run(["sh", str(wrapper), "--cwd", str(self.dir), "--model", slug, "--effort", "high",
+                                "--lane", "A", "--prompt", "x", "--dry-run"], text=True, capture_output=True)
+            self.assertIn("outside the approved", r.stderr)
+
+    def test_family_without_its_cli_is_skipped_not_fatal(self):
+        del self.env["ROUTE_GPT_CATALOG"]
+        self.env["PATH"] = str(self.dir)  # no codex on PATH
+        r = subprocess.run([sys.executable, str(ROUTE), "menu"],
+                           env=self.env, text=True, capture_output=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        models = [line.split("\t")[0] for line in r.stdout.splitlines()]
+        self.assertIn("claude-sonnet-5-5", models)
+        self.assertFalse([m for m in models if m.startswith("gpt-")])
+        self.assertIn("codex is not installed", r.stderr)
+
+    def test_unreadable_active_catalog_fails(self):
+        self.env["ROUTE_CLAUDE_CATALOG"] = str(self.dir / "missing.json")
+        r = self.run_route("menu", "--family", "claude")
+        self.assertEqual(r.returncode, 2, r.stdout)
+        self.assertEqual(r.stdout, "")
+        self.assertIn("cannot read", r.stderr)
+        self.assertNotEqual(self.run_route("menu").returncode, 0)
+
 
 class Validate(RouteHarness):
     def test_clean(self):
@@ -179,6 +219,16 @@ class Validate(RouteHarness):
         r = self.run_route("validate")
         self.assertEqual(r.returncode, 1, r.stdout)
         self.assertIn("grok catalog", r.stdout)
+
+    def test_non_object_families_file_is_a_finding(self):
+        for body in ("[]", "null", '{"families": []}'):
+            with self.subTest(body=body):
+                (self.dir / "families.json").write_text(body)
+                r = self.run_route("validate")
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertNotIn("Traceback", r.stderr)
+                self.assertRegex(r.stdout, r"(?m)^routing\t.*families\.json: expected ")
+                self.assertIn("routing_validate=findings count=1", r.stdout)
 
 
 class OutcomeLog(RouteHarness):

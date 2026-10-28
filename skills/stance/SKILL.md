@@ -45,7 +45,9 @@ cross-family review).
 - Ask for model + effort together in one `AskUserQuestion` (two questions), never marking a tier
   "(Recommended)". **Words-as-ask:** a tier the owner already stated ("terra medium") is the
   answer; ask only for a missing half. Extraction, not inference: "keep it cheap" is not a tier.
-  An approved plan roster answers both halves unless the owner names a tier; never for the auditor.
+  An approved plan roster answers both halves unless the owner names a tier. The auditor is
+  always the owner's choice: one named in the request, else the approved plan's Reviewer; ask
+  only when neither names one (§6).
 - "Use as many [family] subagents as necessary", "as fast as possible without sacrificing
   quality", or `implement using <model> <effort> supersoldiers` set the Supersoldiers stance at
   that exact tier (vibin and chillin likewise). In a planning request this only fills the plan's

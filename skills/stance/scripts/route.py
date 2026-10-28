@@ -29,8 +29,10 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import fnmatch
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -43,6 +45,8 @@ OUTCOMES = Path(os.environ.get("ROUTE_OUTCOMES", HOME / ".agents/state/outcomes.
 CLAUDE_CATALOG = Path(os.environ.get("ROUTE_CLAUDE_CATALOG", HOME / ".agents/skills/headless/data/claude-models.json"))
 GROK_CATALOG = Path(os.environ.get("ROUTE_GROK_CATALOG", HOME / ".agents/skills/headless/data/grok-models.json"))
 GPT_CATALOG = os.environ.get("ROUTE_GPT_CATALOG")
+# The Codex wrapper owns which GPT identities may launch; menu and resolve read its rule.
+CODEX_WRAPPER = Path(__file__).resolve().parents[2] / "headless/scripts/run-codex.sh"
 
 HOSTS = ("claude", "codex", "grok", "hermes", "pi", "other")
 NATIVE_FAMILY = {"claude": "claude", "codex": "gpt", "grok": "grok"}
@@ -81,7 +85,30 @@ def load_json(path: Path) -> dict:
         raise Exit(2, f"cannot read {path}: {exc}")
 
 
+def codex_launchable() -> list[str]:
+    """The model globs run-codex.sh accepts (its `case "$model" in` arm that does not exit)."""
+    try:
+        text = CODEX_WRAPPER.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise Exit(2, f"gpt launch rule unavailable: {exc}")
+    m = re.search(r'case "\$model" in\s*\n\s*([^)\n]+)\)\s*;;', text)
+    if not m:
+        raise Exit(2, f"gpt launch rule unavailable: no approved-model case in {CODEX_WRAPPER}")
+    return [g.strip() for g in m.group(1).split("|")]
+
+
+def not_installed(fam: str) -> bool:
+    """True when a family's catalog source is simply absent on this machine (not broken).
+
+    Only GPT has an external source (the Codex CLI); the Claude and Grok catalogs ship as files
+    in the headless skill, so a missing one is a broken install, not an absent CLI."""
+    return fam == "gpt" and not GPT_CATALOG and not shutil.which("codex")
+
+
 def gpt_catalog() -> dict[str, dict]:
+    """Launchable GPT identities only: the wrapper's family rule, minus models Codex hides
+    (internal or routing aliases are never offered, even when the bundled catalog lists them)."""
+    globs = codex_launchable()
     if GPT_CATALOG:
         text = Path(GPT_CATALOG).read_text(encoding="utf-8")
     else:
@@ -96,7 +123,8 @@ def gpt_catalog() -> dict[str, dict]:
     data = json.loads(text[start:])
     return {m["slug"]: {"efforts": [e["effort"] for e in m.get("supported_reasoning_levels", [])],
                         "fast": "fast" in (m.get("additional_speed_tiers") or [])}
-            for m in data.get("models", [])}
+            for m in data.get("models", [])
+            if m.get("visibility", "list") != "hide" and any(fnmatch.fnmatchcase(m["slug"], g) for g in globs)}
 
 
 class Catalogs:
@@ -109,15 +137,18 @@ class Catalogs:
         return self._cache["claude"]
 
     def models(self, fam: str) -> dict[str, dict]:
-        if fam not in self._cache:
-            if fam == "gpt":
-                self._cache[fam] = gpt_catalog()
-            elif fam == "grok":
-                self._cache[fam] = {k: {"efforts": v["efforts"], "fast": False}
-                                    for k, v in load_json(GROK_CATALOG)["models"].items()}
-        if fam == "claude":
-            return self.claude()["models"]
-        return self._cache[fam]
+        try:
+            if fam == "claude":
+                return self.claude()["models"]
+            if fam not in self._cache:
+                if fam == "gpt":
+                    self._cache[fam] = gpt_catalog()
+                elif fam == "grok":
+                    self._cache[fam] = {k: {"efforts": v["efforts"], "fast": False}
+                                        for k, v in load_json(GROK_CATALOG)["models"].items()}
+            return self._cache[fam]
+        except (KeyError, TypeError, AttributeError, ValueError, OSError) as exc:
+            raise Exit(2, f"{fam} catalog is malformed or unreadable: {exc!r}")
 
     def aliases(self) -> dict[str, str]:
         return {k: v for k, v in self.claude().get("aliases", {}).items() if k != "confirmed"}
@@ -154,7 +185,8 @@ def families() -> dict[str, dict]:
     """Per-user availability; a missing file or family reads as active."""
     if not FAMILIES.exists():
         return {}
-    data = load_json(FAMILIES).get("families", {})
+    root = load_json(FAMILIES)
+    data = root.get("families", {}) if isinstance(root, dict) else None
     if not isinstance(data, dict) or not all(isinstance(v, dict) for v in data.values()):
         raise Exit(2, f"{FAMILIES}: expected {{\"families\": {{\"<family>\": {{\"active\": true|false}}}}}}")
     return data
@@ -200,12 +232,11 @@ def menu(args) -> list[str]:
     for fam in FAMILY_NAMES:
         if (args.family and fam != args.family) or not is_active(fams, fam):
             continue
-        try:
-            models = cats.models(fam)
-        except Exit as exc:
-            print(f"menu\t{fam}: {exc}", file=sys.stderr)
+        if not_installed(fam):
+            print(f"menu\t{fam}: skipped, codex is not installed (no catalog source)", file=sys.stderr)
             continue
-        for model, spec in models.items():
+        # A broken catalog would silently hide a family the owner can use: fail instead.
+        for model, spec in cats.models(fam).items():
             lines.append("\t".join([model, ",".join(spec["efforts"])] + (["fast"] if spec.get("fast") else [])))
     return lines
 
@@ -224,11 +255,11 @@ def validate(_args) -> list[str]:
     cats = Catalogs()
     for fam in FAMILY_NAMES:
         # The GPT catalog is Codex's own output: checked only where Codex (or a saved copy) exists.
-        if not is_active(fams, fam) or (fam == "gpt" and not GPT_CATALOG and not shutil.which("codex")):
+        if not is_active(fams, fam) or not_installed(fam):
             continue
         try:
             models = cats.models(fam)
-        except (Exit, KeyError, ValueError, OSError) as exc:
+        except Exit as exc:
             findings.append(f"{fam} catalog: {exc}")
             continue
         for model, spec in models.items():
