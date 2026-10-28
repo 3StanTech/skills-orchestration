@@ -145,6 +145,8 @@ if [ "$disallowed" = yes ]; then set -- "$@" --disallowed-tools "Edit,Write,Note
 if [ "$lane" = C ]; then set -- "$@" --dangerously-skip-permissions; fi
 if [ "$chrome" = yes ]; then set -- "$@" --chrome; fi
 if [ -n "$output_format" ]; then set -- "$@" --output-format "$output_format"; fi
+# claude -p rejects stream-json without --verbose.
+if [ "$output_format" = stream-json ]; then set -- "$@" --verbose; fi
 if [ -n "$max_budget" ]; then set -- "$@" --max-budget-usd "$max_budget"; fi
 if [ -n "$add_dir" ]; then set -- "$@" --add-dir "$add_dir"; fi
 if [ -n "$allow_tools" ] && [ "$lane" != C ]; then set -- "$@" --allowedTools "$allow_tools"; fi
