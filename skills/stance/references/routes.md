@@ -75,11 +75,14 @@ transcript: `route.py check-model --transcript <subagent jsonl> --expect <model 
 | Acceptance fails the dispatcher's re-run (1st) | same owner repairs, given the failing command and its output | yes |
 | Acceptance fails again (2nd) | **ask the owner** for the escalation tier (menu from `route.py menu`; any family), then launch it fresh with the packet and both failure outputs | — |
 | Escalated attempt fails | mark the task `blocked` and report | — |
+| Audit re-check 1 leaves items (work-audit Phase 6) | the fixer repairs one effort level up, same model, once; a session fixer uses one same-model helper | no |
 
 Only `acceptance` failures (see `returned_by` in §5) move a task down this ladder. Seam, review and
 dispatcher-check returns go back to the owner as ordinary repairs and never trigger escalation.
 
-Nothing pre-sets the escalation tier, so no unusable tier is ever launched on its own. An
+Nothing pre-sets the escalation tier, so no unusable tier is ever launched on its own. The audit
+effort bump is the one standing exception the owner set (2026-11-17): same model, one level, once
+per audit; it is not an escalation and never changes family. An
 escalation is a fresh session either way, so crossing families costs no extra context and adds
 different blind spots. For the reviewer, a family none of the task's owners used is the better pick
 when one is available; the owner may name a same-family auditor (`capabilities.md` §5).

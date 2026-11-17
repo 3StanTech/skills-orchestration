@@ -58,7 +58,7 @@ Merge it into any hooks you already have. Codex (`~/.codex/hooks.json`) and Grok
 
 **Upgrading from the routing table:** an existing `skills/stance/data/routing.json` is ignored and can be deleted; move any family you had marked inactive into `families.json`.
 
-The stances: **chillin** — your session works alone; **vibin** — up to 3 helpers for independent tasks; **supersoldiers** — one helper per independent task.
+The stances: **chillin** — your session works alone (one same-model helper only for an audit effort bump); **vibin** — up to 3 helpers for independent tasks; **supersoldiers** — one helper per independent task.
 
 ### 5. Your policy file
 

@@ -65,7 +65,7 @@ The session (or planner) always coordinates, integrates, and keeps tasks too sma
 
 | Stance | Helpers | Ceiling | Reviewer |
 |---|---|---|---|
-| **Chillin** | 0 — the session implements | 1, only for an independent review or a missing capability | the final work-audit auditor (implement runs it) |
+| **Chillin** | 0 — the session implements (except the one audit effort-bump helper, `references/routes.md` §4) | 1, only for an independent review or a missing capability | the final work-audit auditor (implement runs it) |
 | **Vibin** | 1 per independent task of real size | 3 at once | the final work-audit auditor (implement runs it) |
 | **Supersoldiers** | 1 per independent, file-disjoint task | none (physical limits only: rate limits, machine load) | the final work-audit auditor (implement runs it) |
 
@@ -130,6 +130,8 @@ integration step.
    from `route.py menu`), then launch it fresh with the packet and both failures; a failed
    escalation → `blocked`. Launch, auth or tier errors never
    switch family; report them verbatim.
+   3b. **Audit effort bump:** a failed first work-audit re-check raises the fixer one effort
+   level on the same model, once per audit, outside this ladder (`routes.md` §4, last row).
 4. **Refusals stop the helper.** A refusal of an intended action stops it; a lane's sandbox limit
    does not (`headless/references/contract.md` §5b). The dispatcher asks the owner.
    Destructive steps approved in planning (deleting files, dropping data) are dispatcher-owned.
