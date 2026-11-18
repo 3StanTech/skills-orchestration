@@ -35,7 +35,8 @@ needs (network, browser, writes outside the workspace) is in
   user already named is the answer; ask only for a missing half, in one question round.
   Extraction, not inference.
 - **Every launch asks** unless the owner named the tier in the request or approved a plan roster
-  (or WarFleet muster) that names it. With a named or roster tier, resolve the route:
+  (or WarFleet muster) that names it, or work-audit Phase 6's effort bump applies (its tier is a
+  standing authorization, passed as `--named`). With a named or roster tier, resolve the route:
   `python3 ~/.agents/skills/stance/scripts/route.py resolve --task-type <t> --host <host> --named M:E[:S]`
   (or `--roster M:E[:S]`; `stance/references/routes.md`). Exit 3 means ask the owner. The
   auditor is always asked (or confirmed) by the owner, and so is the escalation tier after a

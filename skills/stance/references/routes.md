@@ -1,7 +1,8 @@
 # Routes — how a task gets its tier and its launch route
 
-**Every launch asks the owner for model + effort**, unless the owner names a tier in the request
-or approves a plan roster that names one. Nothing pre-sets a tier: there is no table, no project
+**Every launch asks the owner for model + effort**, unless the owner names a tier in the request,
+approves a plan roster that names one, or work-audit Phase 6's effort bump applies (a standing owner
+authorization: §2 item 3, §4). Nothing else pre-sets a tier: there is no table, no project
 override and no pre-set escalation tier. Stance is separate: session-only implementation or
 no helpers/subagents means Chillin; Vibin applies only without a stance or delegation constraint. The final
 auditor is always asked (or confirmed) by the owner.
@@ -22,7 +23,10 @@ and the outcome log; it never picks a tier.
    owner's availability call). Words-as-ask: a named tier is the answer; ask only for a missing
    half.
 2. The **approved plan roster** (Orchestration row).
-3. Otherwise **ask the owner** for model + effort (and speed for Claude).
+3. The **audit effort-bump tier** (work-audit Phase 6, when it applies): the fixer's model one effort
+   level up, a standing owner authorization (§4). Pass it as `--named`; the owner gets the one-line
+   notice, not a question.
+4. Otherwise **ask the owner** for model + effort (and speed for Claude).
 
 ```sh
 route.py resolve --task-type <t> --host <host> [--named M:E[:S]] [--roster M:E[:S]]
@@ -75,14 +79,14 @@ transcript: `route.py check-model --transcript <subagent jsonl> --expect <model 
 | Acceptance fails the dispatcher's re-run (1st) | same owner repairs, given the failing command and its output | yes |
 | Acceptance fails again (2nd) | **ask the owner** for the escalation tier (menu from `route.py menu`; any family), then launch it fresh with the packet and both failure outputs | — |
 | Escalated attempt fails | mark the task `blocked` and report | — |
-| Audit re-check 1 leaves items (work-audit Phase 6) | the fixer repairs one effort level up, same model, once; a session fixer uses one same-model helper | no |
+| Audit re-check 1 leaves items (work-audit Phase 6) | when Phase 6's bump applies, the fixer repairs one effort level up, same model, once; a session fixer uses one same-model helper. A coverage gap alone reruns the engine; a fixer at the model's top effort asks the owner (Phase 6) | no |
 
 Only `acceptance` failures (see `returned_by` in §5) move a task down this ladder. Seam, review and
 dispatcher-check returns go back to the owner as ordinary repairs and never trigger escalation.
 
 Nothing pre-sets the escalation tier, so no unusable tier is ever launched on its own. The audit
 effort bump is the one standing exception the owner set (2026-11-17): same model, one level, once
-per audit; it is not an escalation and never changes family. An
+per audit, only when work-audit Phase 6 says it applies; it is not an escalation and never changes family. An
 escalation is a fresh session either way, so crossing families costs no extra context and adds
 different blind spots. For the reviewer, a family none of the task's owners used is the better pick
 when one is available; the owner may name a same-family auditor (`capabilities.md` §5).

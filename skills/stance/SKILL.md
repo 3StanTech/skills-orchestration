@@ -3,7 +3,7 @@ name: stance
 description: >-
   How implementation work is split, staffed and verified on any host (Claude Code, Codex, Grok,
   Hermes, Pi): the supersoldiers / vibin / chillin stances, helper counts, tier resolution (named
-  tier or approved roster, else ask the owner), route per host (native helper vs headless worker), context packets and
+  tier, approved roster or the audit effort bump, else ask the owner), route per host (native helper vs headless worker), context packets and
   their check, file-ownership splits, the dispatcher's acceptance re-run, the failure ladder,
   cross-family review, outcome logging, phases and completion states. Trigger: "implement using
   <model> <effort> <supersoldiers|vibin|chillin>", "use as many subagents as necessary", "as fast
@@ -29,11 +29,12 @@ cross-family review).
   a delegation constraint is stated, announce exactly:
   **"No stance was specified, so I'll use Vibin."**
 - **Tier per task:** every launch asks the owner for model + effort, unless the owner named a
-  tier in the request or approved a plan roster that names one. Classify each delegated task
+  tier in the request or approved a plan roster that names one, or work-audit Phase 6's effort bump
+  applies (its tier is a standing authorization: pass it as `--named`, send the notice). Classify each delegated task
   (`plan`, `mechanical`, `standard`, `hard`, `review`, `network`; browser work is `visual` and
   stays with the session), then resolve it:
   `python3 ~/.agents/skills/stance/scripts/route.py resolve --task-type <t> --host <host> [--named M:E[:S]] [--roster M:E[:S]]`.
-  A tier named in the request wins, then the approved roster. Exit 3 → ask the owner (no tier
+  A tier named in the request wins, then the approved roster, then the Phase 6 bump tier. Exit 3 → ask the owner (no tier
   named, or a roster tier on a family marked inactive in `headless/data/families.json`): one
   question round built from `route.py menu`, nothing preselected; words-as-ask, extraction not
   inference. Exit 2 → a blocker, never a substitution. The auditor is always asked (or
@@ -48,7 +49,8 @@ cross-family review).
 - Ask for model + effort together in one `AskUserQuestion` (two questions), never marking a tier
   "(Recommended)". **Words-as-ask:** a tier the owner already stated ("terra medium") is the
   answer; ask only for a missing half. Extraction, not inference: "keep it cheap" is not a tier.
-  An approved plan roster answers both halves unless the owner names a tier. The auditor is
+  An approved plan roster answers both halves unless the owner names a tier; so does the
+  work-audit Phase 6 bump tier when it applies. The auditor is
   always the owner's choice: one named in the request, else the approved plan's Reviewer; ask
   only when neither names one (§6).
 - "Use as many [family] subagents as necessary", "as fast as possible without sacrificing
@@ -65,7 +67,7 @@ The session (or planner) always coordinates, integrates, and keeps tasks too sma
 
 | Stance | Helpers | Ceiling | Reviewer |
 |---|---|---|---|
-| **Chillin** | 0 — the session implements (except the one audit effort-bump helper, `references/routes.md` §4) | 1, only for an independent review or a missing capability | the final work-audit auditor (implement runs it) |
+| **Chillin** | 0 — the session implements (except the one audit effort-bump helper, `references/routes.md` §4) | 1, only for an independent review, a missing capability, or the audit effort-bump helper | the final work-audit auditor (implement runs it) |
 | **Vibin** | 1 per independent task of real size | 3 at once | the final work-audit auditor (implement runs it) |
 | **Supersoldiers** | 1 per independent, file-disjoint task | none (physical limits only: rate limits, machine load) | the final work-audit auditor (implement runs it) |
 
@@ -105,8 +107,8 @@ integration step.
 ## 5. Per-call tiers
 
 - **Claude Code subagents:** pass the resolved `subagent_alias` as the model and the resolved
-  effort on each launch. The named tier or approved roster is the owner's explicit effort
-  instruction; without one, ask. `headless/data/claude-models.json` records which concrete ID each alias
+  effort on each launch. The named tier, approved roster or work-audit Phase 6 bump tier (when
+  it applies) is the owner's explicit effort instruction; without one, ask. `headless/data/claude-models.json` records which concrete ID each alias
   means; verify after the run with `route.py check-model` (§7).
 - **Exact-ID cases route `headless:claude`** (`run-claude.sh` pins the concrete ID): an older
   model (Opus 4.8, Sonnet 5, Fable 5), a just-released model being held back, fast mode
@@ -131,7 +133,8 @@ integration step.
    escalation → `blocked`. Launch, auth or tier errors never
    switch family; report them verbatim.
    3b. **Audit effort bump:** a failed first work-audit re-check raises the fixer one effort
-   level on the same model, once per audit, outside this ladder (`routes.md` §4, last row).
+   level on the same model, once per audit, outside this ladder, when work-audit Phase 6 says it
+   applies (not for a coverage gap alone or a fixer already at the top effort; `routes.md` §4, last row).
 4. **Refusals stop the helper.** A refusal of an intended action stops it; a lane's sandbox limit
    does not (`headless/references/contract.md` §5b). The dispatcher asks the owner.
    Destructive steps approved in planning (deleting files, dropping data) are dispatcher-owned.
@@ -193,7 +196,8 @@ this roster exactly; an invalid entry is a blocker to ask about, never a substit
 - Never exceed a stance ceiling; never pad helpers "just in case".
 - Never let two helpers write the same file in one wave.
 - Never launch a packet that fails `packet-check.py`.
-- Never launch a tier the owner did not name, approve in a roster, or answer when asked.
+- Never launch a tier the owner did not name, approve in a roster, answer when asked, or
+  authorize as the work-audit Phase 6 effort bump (only when Phase 6 says it applies).
 - Never mark a task done without the dispatcher's acceptance re-run.
 - Never launch during planning; never start WarFleet from stance words.
 - Never show a token meter or cost tally in runs.
