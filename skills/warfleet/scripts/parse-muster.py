@@ -45,11 +45,6 @@ class ModelSpec:
 # prevent that specific pair, but the ordering keeps the invariant obvious.)
 EFFORTS = ("ultra", "xhigh", "medium", "high", "low", "max")
 
-GPT_EFFORTS = frozenset({"low", "medium", "high", "xhigh", "max", "ultra"})
-LUNA_EFFORTS = GPT_EFFORTS - {"ultra"}
-CLAUDE_EFFORTS = frozenset({"low", "medium", "high", "xhigh", "max"})
-
-
 # Grok is matched separately from the alias table because its id carries a version
 # the user may name ("Grok 4.5" vs "Grok 4.6"), and each version accepts a DIFFERENT
 # effort set — 4.6 adds xhigh, 4.5 does not. Getting that wrong only fails at launch,
@@ -137,28 +132,48 @@ def find_exact_ids(text: str, role: str, matches, exact: dict[str, ModelSpec]):
     return found
 
 
-def model_aliases(grok_model: str) -> tuple[tuple[re.Pattern[str], ModelSpec], ...]:
-    """Alias table for the non-Grok families."""
-    return (
-        (re.compile(r"\b(?:gpt[\s-]*)?6[\s-]*astra\b", re.I),
-         ModelSpec("gpt", "gpt-6-astra", GPT_EFFORTS, True)),
-        (re.compile(r"\b(?:claude[\s-]+)?opus[\s-]*5\b", re.I),
-         ModelSpec("claude", "claude-opus-5", CLAUDE_EFFORTS, True)),
-        (re.compile(r"\b(?:claude[\s-]+)?opus[\s-]*4(?:[.\s-]*8)\b", re.I),
-         ModelSpec("claude", "claude-opus-4-8", CLAUDE_EFFORTS, True)),
-        (re.compile(r"\b(?:claude[\s-]+)?sonnet[\s-]*5\b", re.I),
-         ModelSpec("claude", "claude-sonnet-5", CLAUDE_EFFORTS, False)),
-        (re.compile(r"\b(?:claude[\s-]+)?fable[\s-]*5\b", re.I),
-         ModelSpec("claude", "claude-fable-5", CLAUDE_EFFORTS, False)),
-        (re.compile(r"\b(?:gpt[\s-]*)?(?:5(?:[.\s-]*6)?[\s-]*)?sol\b", re.I),
-         ModelSpec("gpt", "gpt-5.6-sol", GPT_EFFORTS, True)),
-        (re.compile(r"\b(?:gpt[\s-]*)?(?:5(?:[.\s-]*6)?[\s-]*)?terra\b", re.I),
-         ModelSpec("gpt", "gpt-5.6-terra", GPT_EFFORTS, True)),
-        (re.compile(r"\b(?:gpt[\s-]*)?(?:5(?:[.\s-]*6)?[\s-]*)?luna\b", re.I),
-         ModelSpec("gpt", "gpt-5.6-luna", LUNA_EFFORTS, True)),
-        (re.compile(r"\bgpt[\s-]*5[.\s-]*5\b", re.I),
-         ModelSpec("gpt", "gpt-5.5", GPT_EFFORTS - {"ultra", "max"}, True)),
-    )
+CLAUDE_SLUG = re.compile(r"^claude-([a-z]+)-(\d+)(?:-(\d+))?$")
+GPT_NAMED_SLUG = re.compile(r"^gpt-(\d+)(?:\.(\d+))?-([a-z]+)$")
+GPT_BARE_SLUG = re.compile(r"^gpt-(\d+)\.(\d+)$")
+
+
+def _version(major: str, minor: str | None) -> str:
+    # A lone major must not be the tail of a longer version (`5.6 sol` is not `6 sol`)
+    # or the head of one (`opus 5.5` is not `opus 5`).
+    if minor is None:
+        return rf"(?<![\d.]){major}(?![.-]\d)"
+    return rf"(?<![\d.]){major}[.\s-]*{minor}(?![.-]\d)"
+
+
+def model_aliases(exact: dict[str, ModelSpec]) -> tuple[tuple[re.Pattern[str], ModelSpec], ...]:
+    """Spoken names for every catalog model, built from the catalog itself so a new
+    release needs no table edit: `Opus 5.5`, `Sonnet 5`, `GPT 6.2 Sol`, `6 Astra`, `GPT 5.5`.
+    Every alias carries its version; a bare family name is refused (see bare_family_names)."""
+    aliases = []
+    for slug, spec in exact.items():
+        if m := CLAUDE_SLUG.match(slug):
+            name, major, minor = m.groups()
+            pattern = rf"\b(?:claude[\s-]+)?{name}[\s-]*{_version(major, minor)}"
+        elif m := GPT_NAMED_SLUG.match(slug):
+            major, minor, name = m.groups()
+            pattern = rf"(?:\bgpt[\s-]*)?{_version(major, minor)}[\s-]*{name}\b"
+        elif m := GPT_BARE_SLUG.match(slug):
+            pattern = rf"\bgpt[\s-]*{_version(*m.groups())}"
+        else:
+            continue  # e.g. gpt-daybreak-blue-latest: full ID only
+        aliases.append((re.compile(pattern, re.I), spec))
+    return tuple(aliases)
+
+
+def bare_family_names(exact: dict[str, ModelSpec]) -> frozenset[str]:
+    """Family words (opus, sol, luna...) that need a version to name a model."""
+    names = set()
+    for slug in exact:
+        if m := CLAUDE_SLUG.match(slug):
+            names.add(m.group(1))
+        elif m := GPT_NAMED_SLUG.match(slug):
+            names.add(m.group(3))
+    return frozenset(names)
 
 
 def fail(message: str) -> None:
@@ -202,6 +217,10 @@ def parse_entry(text: str, role: str, aliases, grok_model: str,
 
     identities = sorted({spec.model for _, spec, _ in hits})
     if not identities:
+        named = [w for w in re.findall(r"[a-z]+", text.lower()) if w in bare_family_names(exact)]
+        if named:
+            fail(f"{role}: {named[0]!r} in {text!r} names no version the catalog lists; "
+                 f"say which one (e.g. 'GPT 6.2 Sol', 'Opus 5.5') or use the full model ID")
         fail(f"{role}: expected exactly one known model in {text!r}")
     if len(identities) > 1:
         fail(f"{role}: expected exactly one model per selection, found {', '.join(identities)} in {text!r}")
@@ -296,11 +315,11 @@ def compile_muster(admiral: str, general: str, infantry: str, grok_model: str,
                    grok_efforts: dict[str, frozenset[str]] | None = None,
                    infantry_subagents: str | None = None,
                    exact_catalog: dict[str, ModelSpec] | None = None) -> dict[str, Any]:
-    aliases = model_aliases(grok_model)
     if grok_efforts is None:
         grok_efforts = load_grok_efforts(GROK_CATALOG)
     if exact_catalog is None:
         exact_catalog = load_exact_catalog()
+    aliases = model_aliases(exact_catalog)
 
     def role(raw: str, name: str, lo: int, hi: int):
         return parse_role(raw, name, lo, hi, aliases, grok_model, grok_efforts, exact_catalog)

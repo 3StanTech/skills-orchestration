@@ -11,7 +11,7 @@ Loaded at the very start of a run, before anything is read or analysed.
   parallelism, or additional-tier popups. Wait for each answer before showing the next.
 - **The free-form `Other` box is the escape hatch** for anything the menu does not list — a second
   Admiral, a share split, a role instruction, an off-menu tier, or **`fast`** on a model that
-  supports it (`Opus 5 High fast`, `GPT Sol High fast`, `Luna max fast`). The compiler understands
+  supports it (`Opus 5.5 High fast`, `GPT 6.2 Sol High fast`, `GPT 6 Luna max fast`). The compiler understands
   all of it. `fast` on Grok, Fable, or Sonnet is `INVALID` — those models have no fast mode.
 - **Only the root dispatcher may call the clickable-input tool.** If WarFleet is somehow entered
   inside a subagent, hand the tool-shaped question back to the root. Use available native
@@ -30,7 +30,7 @@ Loaded at the very start of a run, before anything is read or analysed.
                  [--split <fam><pct>/<fam><pct>]
 ```
 
-Prose counts too: *"warfleet this with Opus 5 high as admiral, Grok 4.6 xhigh infantry, vibin"*
+Prose counts too: *"warfleet this with Opus 5.5 high as admiral, Grok 4.6 xhigh infantry, vibin"*
 answers popups 1 and 3 plus the stance. Any unnamed roster role still gets its popup.
 
 **Implementation-performance language selects `supersoldiers` only inside a WarFleet run
@@ -71,7 +71,7 @@ the *approval*.
   invariant, not a guideline. If you find yourself about to write "(Recommended)", that is the bug.
 - **Every question is role-scoped, never family-scoped.** Ask "Fleet Admiral: model + effort", never
   "which model should Codex units use" — a family-scoped question wrongly forces one GPT tier across
-  roles, when the user may well want GPT Sol as General and GPT Luna in Infantry.
+  roles, when the user may well want GPT 6.2 Sol as General and GPT 6 Luna in Infantry.
 - **Menus list exactly the options in this file.** `max` and `ultra` may appear when a menu option
   names them. The compiler still honors any supported tier the user names in `Other`. There is no
   "escalate beyond the menu" follow-up.
@@ -89,11 +89,11 @@ a model or adding a fake choice. Preserve natural-language answers verbatim for 
 ### Popup 1 — Fleet Admiral
 
 ~~~json
-{"questions":[{"header":"Fleet Admiral","id":"fleet_admiral","question":"Fleet Admiral: model + effort?","multiSelect":false,"options":[{"label":"Opus 5 High","description":"Claude Opus 5 at high effort, standard speed."},{"label":"Grok 4.6 High","description":"Grok 4.6 at high effort, standard speed."},{"label":"GPT Sol High","description":"GPT Sol at high effort, standard speed."},{"label":"Fable 5 High","description":"Claude Fable 5 at high effort, standard speed."}]}]}
+{"questions":[{"header":"Fleet Admiral","id":"fleet_admiral","question":"Fleet Admiral: model + effort?","multiSelect":false,"options":[{"label":"Opus 5.5 High","description":"Claude Opus 5.5 at high effort, standard speed."},{"label":"Grok 4.6 High","description":"Grok 4.6 at high effort, standard speed."},{"label":"GPT 6.2 Sol High","description":"GPT 6.2 Sol at high effort, standard speed."},{"label":"Fable 5.1 High","description":"Claude Fable 5.1 at high effort, standard speed."}]}]}
 ~~~
 
 To muster a **second Admiral** — one that reviews the draft plan and owns the final review — the user
-types both in `Other`, joined by `+`: `Opus 5 high + GPT Sol high`. One or two is the accepted range.
+types both in `Other`, joined by `+`: `Opus 5.5 high + GPT 6.2 Sol high`. One or two is the accepted range.
 
 > **The instant Popup 1 returns: launch the Admiral's Stage A recon in the background, and go
 > straight to Popup 2 without waiting for it.** Do not poll it, do not read its output, do not mention
@@ -104,17 +104,17 @@ types both in `Other`, joined by `+`: `Opus 5 high + GPT Sol high`. One or two i
 ### Popup 2 — General
 
 ~~~json
-{"questions":[{"header":"General","id":"general","question":"General: model + effort?","multiSelect":false,"options":[{"label":"GPT Sol High","description":"GPT Sol at high effort, standard speed."},{"label":"Grok 4.6 High","description":"Grok 4.6 at high effort, standard speed."},{"label":"Opus 5 High","description":"Claude Opus 5 at high effort, standard speed."},{"label":"Grok 4.6 Medium","description":"Grok 4.6 at medium effort, standard speed."}]}]}
+{"questions":[{"header":"General","id":"general","question":"General: model + effort?","multiSelect":false,"options":[{"label":"GPT 6.2 Sol High","description":"GPT 6.2 Sol at high effort, standard speed."},{"label":"Grok 4.6 High","description":"Grok 4.6 at high effort, standard speed."},{"label":"Opus 5.5 High","description":"Claude Opus 5.5 at high effort, standard speed."},{"label":"Grok 4.6 Medium","description":"Grok 4.6 at medium effort, standard speed."}]}]}
 ~~~
 
 ### Popup 3 — Infantry
 
 ~~~json
-{"questions":[{"header":"Infantry","id":"infantry","question":"Infantry: model + effort?","multiSelect":false,"options":[{"label":"Grok 4.5 High","description":"Grok 4.5 at high effort, standard speed."},{"label":"GPT Luna XHigh","description":"GPT Luna at xhigh effort, standard speed."},{"label":"GPT Luna Max","description":"GPT Luna at max effort, standard speed."},{"label":"GPT Terra High","description":"GPT Terra at high effort, standard speed."}]}]}
+{"questions":[{"header":"Infantry","id":"infantry","question":"Infantry: model + effort?","multiSelect":false,"options":[{"label":"Grok 4.5 High","description":"Grok 4.5 at high effort, standard speed."},{"label":"GPT 6 Luna XHigh","description":"GPT 6 Luna at xhigh effort, standard speed."},{"label":"GPT 6 Luna Max","description":"GPT 6 Luna at max effort, standard speed."},{"label":"GPT 6.1 Terra High","description":"GPT 6.1 Terra at high effort, standard speed."}]}]}
 ~~~
 
-**Multiple Infantry tiers** go in `Other`, comma-separated: `Grok 4.5 high, Luna xhigh`. A **fixed
-task-count split** appends a percentage per tier: `Grok 4.5 high 70, Luna xhigh 30` — every tier
+**Multiple Infantry tiers** go in `Other`, comma-separated: `Grok 4.5 high, GPT 6 Luna xhigh`. A **fixed
+task-count split** appends a percentage per tier: `Grok 4.5 high 70, GPT 6 Luna xhigh 30` — every tier
 needs a share and the shares must total 100, or the compiler rejects the answer rather than guessing.
 
 **Every Grok pick must name a version and an effort** (`Grok 4.5 High`, `Grok 4.6 xhigh`). A bare
@@ -175,7 +175,11 @@ scripts/parse-muster.py \
   --grok-model "<resolved id>" --output "<state>/warfleet-muster.json"
 ```
 
-The compiler accepts friendly aliases and case-insensitive prose, supports one or two Admirals,
+The compiler accepts friendly names built from the model catalogs (`headless/data/claude-models.json`
+and `codex debug models --bundled`), so a new release needs no edit. **Every Claude and GPT name
+carries its version** (`Opus 5.5`, `GPT 6.2 Sol`, `6 Luna`); a bare `Sol`, `Opus` or `Luna` is
+`INVALID`, as is a version the catalog does not list. Menu labels follow the newest catalog models.
+It accepts case-insensitive prose, supports one or two Admirals,
 exactly one General and one or more Infantry tiers, preserves text after `=` as role instructions,
 defaults omitted speed to `standard` while preserving an explicit `fast`, pins Grok, compiles the
 Infantry-subagent stance, and **fails with `INVALID:` on anything ambiguous instead of guessing**.

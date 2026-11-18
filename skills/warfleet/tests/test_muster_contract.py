@@ -56,7 +56,14 @@ class MusterContractTests(unittest.TestCase):
 
     def test_infantry_offers_luna_max(self) -> None:
         labels = [o["label"] for o in payloads()[2]["questions"][0]["options"]]
-        self.assertIn("GPT Luna Max", labels)
+        self.assertIn("GPT 6 Luna Max", labels)
+
+    def test_every_claude_and_gpt_option_names_a_version(self) -> None:
+        for payload in payloads():
+            for option in payload["questions"][0]["options"]:
+                if option["label"].lower().startswith("grok"):
+                    continue
+                self.assertRegex(option["label"], r"\d", f"bare family name in menu: {option['label']}")
 
     def test_every_popup_is_single_select_within_the_four_option_cap(self) -> None:
         for payload in payloads():
