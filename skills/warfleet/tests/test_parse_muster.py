@@ -257,7 +257,7 @@ class FailDoNotGuessTests(unittest.TestCase):
 
     def test_infantry_subagent_stances_compile(self) -> None:
         data = compile_muster("Opus 5 High", "GPT 5.6 Sol High", "Grok 4.5 high", GROK,
-                              GROK_EFFORTS, "Vibin")
+                              GROK_EFFORTS, "Vibin", exact_catalog=EXACT)
         self.assertEqual(data["infantry_subagents"]["stance"], "vibin")
         self.assertEqual(data["raw_answers"]["infantry_subagents"], "Vibin")
 
@@ -270,7 +270,7 @@ class FailDoNotGuessTests(unittest.TestCase):
     def test_unknown_subagent_stance_fails(self) -> None:
         with self.assertRaises(MusterError):
             compile_muster("Opus 5 High", "GPT 5.6 Sol High", "Grok 4.5 high", GROK,
-                           GROK_EFFORTS, "lots")
+                           GROK_EFFORTS, "lots", exact_catalog=EXACT)
 
     def test_bare_grok_without_effort_fails(self) -> None:
         with self.assertRaises(MusterError):
